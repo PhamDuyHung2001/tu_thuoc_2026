@@ -1,11 +1,15 @@
 {
-  "name": "MediCare Smart Box",
   "short_name": "MediCare",
-  "description": "Tủ thuốc thông minh 18 ngăn, lịch báo thuốc, RFID & Camera AI",
+  "name": "MediCare Smart Box",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/564/564500.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
   "start_url": "./index.html",
-  "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#070d19",
   "theme_color": "#070d19"
 }
