@@ -3,6 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#070d19" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MediCare" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='44' fill='%230284c7'/%3E%3Crect x='82' y='44' width='28' height='104' rx='8' fill='%23ffffff'/%3E%3Crect x='44' y='82' width='104' height='28' rx='8' fill='%23ffffff'/%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='44' fill='%230284c7'/%3E%3Crect x='82' y='44' width='28' height='104' rx='8' fill='%23ffffff'/%3E%3Crect x='44' y='82' width='104' height='28' rx='8' fill='%23ffffff'/%3E%3C/svg%3E" />
   <title>MediCare Pro — Tủ Thuốc Thông Minh</title>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
@@ -553,7 +561,6 @@
     const slotColor = {};
     for (let i = 1; i <= 18; i++) slotColor[i] = "red";
 
-    // Lưu trạng thái mở/đóng tay tạm thời theo từng ô để tránh gói đồng bộ cũ ghi đè
     const manualSlotOverride = {};
 
     let client = null;
@@ -788,7 +795,7 @@
       const whoLabel = person === "A" ? "Người A" : "Người B";
       const nearestTime = rankedOptions.length ? rankedOptions[0].time : "";
       sendVoiceToPyCharm(
-        `Đã xác nhận ${whoLabel} qua ${viaLabel}. Mốc gần nhất là ${nearestTime} màu hồng, các mốc xa hơn màu xanh. Mời chọn mốc trên màn hình tủ thuốc.`,
+        `Đã xác nhận ${whoLabel} qua ${viaLabel}. Mốc gần nhất là ${nearestTime} viền xanh, các mốc còn lại viền cam. Mời chọn mốc trên màn hình tủ thuốc.`,
         "scan_done_oled"
       );
 
@@ -901,7 +908,7 @@
           document.getElementById("oled-picking-title").textContent =
             `${whoLabel} đang chọn mốc giờ trên màn hình OLED`;
           document.getElementById("oled-picking-desc").textContent = near
-            ? `Gần nhất (Hồng): ${near.time} - ${near.message} (Ô ${near.slots.join(",")}). Các mốc khác hiển thị màu Xanh trên OLED.`
+            ? `Gần nhất (Viền xanh): ${near.time} - ${near.message} (Ô ${near.slots.join(",")}). Các mốc còn lại hiển thị viền Cam trên OLED.`
             : "Mời chạm chọn mốc trên màn hình OLED.";
           oledCard.classList.remove("hidden");
         }
@@ -1020,7 +1027,6 @@
       `).join("");
     }
 
-    // ================= 18 NGĂN (MỞ & ĐÓNG SERVO TRÊN WEB) =================
     function canTouchSlot(slotNum) {
       if (!currentUser) return false;
       if (currentUser.role === "ADMIN") return true;
@@ -1341,6 +1347,12 @@
             }
           }
         } catch (e) {}
+      });
+    }
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
       });
     }
   </script>
