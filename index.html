@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>MediCare Pro — Tủ Thuốc Thông Minh</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    :root {
+      --bg: #070d19;
+      --surface: #10192c;
+      --surface-2: #17233b;
+      --border: rgba(148, 163, 184, 0.16);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #38bdf8;
+      --accent-a: #34d399;
+      --accent-b: #a78bfa;
+      --green: #22c55e;
+      --green-soft: rgba(34, 197, 94, 0.18);
+      --orange: #f97316;
+      --orange-soft: rgba(249, 115, 22, 0.2);
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --red-soft: rgba(239, 68, 68, 0.18);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: radial-gradient(circle at top, #0f1f3d 0%, var(--bg) 52%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+
+    .app-shell {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      background: var(--bg);
+      position: relative;
+      padding-bottom: 90px;
+    }
+
+    .login-screen {
+      padding: 36px 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .brand-logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #38bdf8, #2563eb);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 14px;
+      font-size: 30px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .brand-title { text-align: center; font-size: 22px; font-weight: 800; }
+    .brand-sub { text-align: center; font-size: 13px; color: var(--muted); margin-top: 4px; margin-bottom: 22px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 15px;
+      margin: 0 14px 12px;
+    }
+
+    .quick-pills { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+    .pill-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 9px 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+    }
+    .pill-btn span { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    .field { margin-bottom: 11px; }
+    .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+    .field input, .field select {
+      width: 100%;
+      background: #091122;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 11px 13px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+    }
+
+    .btn-main {
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #38bdf8, #0284c7);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .err-text { color: #f87171; font-size: 12px; text-align: center; margin-top: 8px; min-height: 16px; }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: rgba(7, 13, 25, 0.92);
+      backdrop-filter: blur(12px);
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .app-header h2 { font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 6px; }
+    .role-chip {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.18);
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .conn-line { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); }
+    .dot.ok { background: var(--green); }
+    .dot.err { background: var(--red); }
+
+    .btn-exit {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 11px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .sensor-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 14px; }
+    .sensor-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 11px 12px; }
+    .sensor-tile.cam { border-left: 3px solid var(--primary); }
+    .sensor-tile.rfid { border-left: 3px solid var(--accent-b); }
+    .tile-kicker { font-size: 10px; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+    .tile-val { font-size: 14px; font-weight: 800; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tile-val.a { color: var(--accent-a); }
+    .tile-val.b { color: var(--accent-b); }
+    .tile-val.warn { color: var(--yellow); }
+    .tile-meta { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+    .oled-sync-box {
+      background: var(--surface);
+      border: 1.5px solid var(--primary);
+      border-radius: 16px;
+      padding: 13px 14px;
+      margin: 0 14px 12px;
+    }
+
+    .open-box {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(2, 132, 199, 0.16));
+      border: 1.5px solid var(--green);
+      border-radius: 16px;
+      padding: 13px 14px;
+      margin: 0 14px 12px;
+    }
+
+    .section-head { display: flex; justify-content: space-between; align-items: center; padding: 4px 16px 8px; }
+    .section-head h3 { font-size: 14px; font-weight: 700; }
+
+    .slot-picker { display: grid; grid-template-columns: repeat(9, 1fr); gap: 5px; margin-top: 6px; }
+    .pick-chip {
+      padding: 7px 0;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #091122;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+    }
+    .pick-chip.selected { background: rgba(56, 189, 248, 0.24); border-color: var(--primary); color: #fff; }
+
+    .alarm-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      padding: 12px 14px;
+      margin: 0 14px 9px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .alarm-time { font-size: 20px; font-weight: 800; color: var(--primary); }
+    .alarm-desc { font-size: 12px; font-weight: 700; margin-top: 2px; }
+    .alarm-slots { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .alarm-btns { display: flex; flex-direction: column; gap: 6px; }
+    .btn-sm {
+      padding: 6px 10px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-sm.open { background: var(--green-soft); border-color: var(--green); color: #4ade80; }
+    .btn-sm.del { background: var(--red-soft); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; }
+
+    .grid-18 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; padding: 0 14px; }
+    .slot-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .slot-card.st-green {
+      border-color: var(--green);
+      background: linear-gradient(180deg, rgba(34, 197, 94, 0.24), var(--surface));
+    }
+    .slot-card.st-orange {
+      border-color: var(--orange);
+      background: linear-gradient(180deg, rgba(249, 115, 22, 0.22), var(--surface));
+    }
+    .slot-card.owner-a { border-top: 3px solid var(--accent-a); }
+    .slot-card.owner-b { border-top: 3px solid var(--accent-b); }
+    .slot-card.locked { opacity: 0.35; cursor: not-allowed; }
+
+    .slot-top { display: flex; justify-content: space-between; align-items: center; }
+    .slot-id { font-size: 13px; font-weight: 800; }
+    .slot-tag { font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 6px; background: var(--surface-2); color: var(--muted); }
+    .slot-tag.a { color: var(--accent-a); }
+    .slot-tag.b { color: var(--accent-b); }
+    .slot-sub { font-size: 10px; color: var(--muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .slot-st {
+      margin-top: 6px;
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--red-soft);
+      color: #f87171;
+    }
+    .slot-card.st-green .slot-st { background: var(--green-soft); color: #4ade80; }
+    .slot-card.st-orange .slot-st { background: var(--orange-soft); color: #fb923c; }
+
+    .status-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      padding: 13px 14px;
+      margin: 0 14px 10px;
+      border-left: 4px solid var(--green);
+    }
+    .status-box.yellow { border-left-color: var(--yellow); }
+    .status-box.red { border-left-color: var(--red); }
+
+    .log-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      padding: 10px 12px;
+      margin: 0 14px 8px;
+      font-size: 12px;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      background: rgba(16, 25, 44, 0.96);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 8px 6px 12px;
+      z-index: 40;
+    }
+
+    .nav-item {
+      background: none;
+      border: none;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .nav-item span:first-child { font-size: 17px; }
+    .nav-item.active { color: var(--primary); }
+
+    .toast {
+      position: fixed;
+      top: 68px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      border: 1px solid var(--primary);
+      color: #fff;
+      padding: 9px 15px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      z-index: 80;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <div id="login-view" class="login-screen">
+      <div class="brand-logo">+</div>
+      <div class="brand-title">MediCare Smart Box</div>
+      <div class="brand-sub">Lịch báo thuốc • 18 ngăn • RFID &amp; Camera AI</div>
+
+      <div class="card" style="margin:0;">
+        <div class="quick-pills">
+          <button type="button" class="pill-btn" onclick="quickFill('nam')">Người A<span>nam / 1234</span></button>
+          <button type="button" class="pill-btn" onclick="quickFill('nu')">Người B<span>nu / 1234</span></button>
+          <button type="button" class="pill-btn" onclick="quickFill('quanly')">Quản lý<span>quanly / 1234</span></button>
+        </div>
+
+        <form id="login-form">
+          <div class="field">
+            <label for="inp-user">Tài khoản</label>
+            <input id="inp-user" type="text" placeholder="nam / nu / quanly" autocapitalize="none" required />
+          </div>
+          <div class="field">
+            <label for="inp-pass">Mật khẩu</label>
+            <input id="inp-pass" type="password" placeholder="1234" required />
+          </div>
+          <button type="submit" class="btn-main">ĐĂNG NHẬP</button>
+          <div id="login-err" class="err-text"></div>
+        </form>
+      </div>
+    </div>
+
+    <div id="main-view" class="hidden">
+      <header class="app-header">
+        <div>
+          <h2><span id="hdr-name">Người dùng</span> <span id="hdr-role" class="role-chip"></span></h2>
+          <div class="conn-line">
+            <span id="mqtt-dot" class="dot"></span>
+            <span id="mqtt-txt">Đang kết nối MQTT...</span>
+            <span>•</span>
+            <span id="live-clock">--:--:--</span>
+          </div>
+        </div>
+        <button type="button" class="btn-exit" onclick="logout()">Thoát</button>
+      </header>
+
+      <div class="sensor-strip">
+        <div class="sensor-tile cam">
+          <div class="tile-kicker">Trạng thái đồng bộ</div>
+          <div id="scan-state-val" class="tile-val warn">CHỜ NHẬN THUỐC</div>
+          <div id="scan-state-sub" class="tile-meta">Bấm Nhận thuốc trên OLED để quét</div>
+        </div>
+        <div class="sensor-tile rfid">
+          <div class="tile-kicker">Thẻ từ RFID</div>
+          <div id="rfid-val" class="tile-val">Chưa quét thẻ</div>
+          <div id="rfid-sub" class="tile-meta">A: 1E61ED03 • B: 6500EF03</div>
+        </div>
+      </div>
+
+      <div id="oled-picking-card" class="oled-sync-box hidden">
+        <div id="oled-picking-title" style="font-size:14px;font-weight:800;color:var(--primary);margin-bottom:4px;">
+          Đang chờ chọn mốc trên màn hình OLED
+        </div>
+        <div id="oled-picking-desc" style="font-size:12px;color:#cbd5e1;line-height:1.5;"></div>
+      </div>
+
+      <div id="opened-door-card" class="open-box hidden">
+        <div id="opened-door-title" style="font-size:14px;font-weight:800;color:#4ade80;margin-bottom:4px;">Đang mở cửa</div>
+        <div id="opened-door-desc" style="font-size:12px;color:#e2e8f0;margin-bottom:10px;"></div>
+        <button type="button" class="btn-exit" style="width:100%;padding:10px;font-size:13px;font-weight:700;color:#4ade80;border-color:var(--green);" onclick="finishAndCloseDoor()">
+          Đóng cửa kết thúc
+        </button>
+      </div>
+
+      <div id="tab-alarms">
+        <div class="section-head">
+          <h3>Đặt giờ lấy thuốc (Như báo thức)</h3>
+        </div>
+
+        <div class="card">
+          <div id="alarm-target-wrap" class="field hidden">
+            <label for="alarm-target-person">Tạo lịch cho</label>
+            <select id="alarm-target-person" onchange="renderSlotPicker()">
+              <option value="A">Người A (Ô 1,2,3,7,8,9,13,14,15)</option>
+              <option value="B">Người B (Ô 4,5,6,10,11,12,16,17,18)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="alarm-time">Chọn giờ</label>
+            <input id="alarm-time" type="time" value="07:00" />
+          </div>
+
+          <div class="field">
+            <label for="alarm-msg">Lời nhắn</label>
+            <input id="alarm-msg" type="text" placeholder="VD: Uống thuốc huyết áp" />
+          </div>
+
+          <div class="field">
+            <label>Chọn ô thuốc</label>
+            <div id="slot-picker" class="slot-picker"></div>
+          </div>
+
+          <button type="button" class="btn-main" onclick="addAlarm()">+ LƯU &amp; ĐỒNG BỘ MỐC</button>
+        </div>
+
+        <div class="section-head">
+          <h3 id="alarm-list-title">Danh sách giờ báo thuốc</h3>
+        </div>
+        <div id="alarms-list"></div>
+      </div>
+
+      <div id="tab-slots" class="hidden">
+        <div class="section-head">
+          <h3 id="slots-heading">18 Ngăn thuốc</h3>
+          <button type="button" class="btn-exit" style="color:#fca5a5;" onclick="finishAndCloseDoor()">Đóng tất cả</button>
+        </div>
+        <div id="slots-grid" class="grid-18"></div>
+      </div>
+
+      <div id="tab-history" class="hidden">
+        <div class="section-head">
+          <h3>Trạng thái &amp; Lịch sử</h3>
+          <button type="button" id="btn-clear-hist" class="btn-exit hidden" style="color:#fca5a5;" onclick="clearHistory()">Xóa log</button>
+        </div>
+        <div id="status-cards-wrap"></div>
+        <div id="history-list-wrap"></div>
+      </div>
+
+      <div id="tab-voice" class="hidden">
+        <div class="section-head">
+          <h3>Phát loa qua PyCharm</h3>
+        </div>
+        <div class="card">
+          <div class="field">
+            <label for="tts-input">Nội dung đọc qua loa PC</label>
+            <input id="tts-input" type="text" placeholder="VD: Người A đến giờ uống thuốc huyết áp" />
+          </div>
+          <button type="button" class="btn-main" onclick="sendVoiceToPyCharm(document.getElementById('tts-input').value)">
+            GỬI LỆNH PHÁT LOA (PYCHARM)
+          </button>
+        </div>
+      </div>
+
+      <nav class="bottom-nav">
+        <button type="button" class="nav-item active" data-tab="alarms" onclick="switchTab('alarms')">
+          <span>⏰</span><span>Báo thuốc</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="slots" onclick="switchTab('slots')">
+          <span>💊</span><span>18 Ngăn</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="history" onclick="switchTab('history')">
+          <span>📋</span><span>Lịch sử</span>
+        </button>
+        <button type="button" class="nav-item" data-tab="voice" onclick="switchTab('voice')">
+          <span>🔊</span><span>Loa PC</span>
+        </button>
+      </nav>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script>
+    const SLOTS_A = [1, 2, 3, 7, 8, 9, 13, 14, 15];
+    const SLOTS_B = [4, 5, 6, 10, 11, 12, 16, 17, 18];
+
+    const UID_MAP = {
+      "1E61ED03": "A",
+      "6500EF03": "B",
+      "3D92EE03": "ADMIN"
+    };
+
+    const USERS = {
+      nam:    { password: "1234", name: "Người A", role: "A",     label: "Người A" },
+      nu:     { password: "1234", name: "Người B", role: "B",     label: "Người B" },
+      quanly: { password: "1234", name: "Quản lý", role: "ADMIN", label: "Quản lý" }
+    };
+
+    const MQTT_WS_URL    = "wss://broker.hivemq.com:8884/mqtt";
+    const TOPIC_CMD      = "tu_thuoc_01/cmd";
+    const TOPIC_SCHEDULE = "tu_thuoc_01/schedule";
+    const TOPIC_STATE    = "tu_thuoc_01/state";
+    const TOPIC_RFID     = "tu_thuoc_01/rfid";
+    const TOPIC_STATUS   = "tu_thuoc_01/status";
+    const TOPIC_CAMERA   = "tu_thuoc_01/camera";
+    const TOPIC_EVENT    = "tu_thuoc_01/event";
+    const TOPIC_TTS      = "tu_thuoc_01/tts";
+
+    const KEY_ALARMS = "medibox_alarms_v10";
+    const KEY_LOGS   = "medibox_logs_v10";
+    const KEY_STATE  = "medibox_state_v10";
+
+    const DEFAULT_ALARMS = [
+      { id: "a_0700", person: "A", time: "07:00", message: "Uống thuốc huyết áp", slots: [1, 7, 13] },
+      { id: "a_1600", person: "A", time: "16:00", message: "Uống thuốc hằng ngày", slots: [2, 8, 14] },
+      { id: "b_0700", person: "B", time: "07:00", message: "Uống thuốc huyết áp", slots: [4, 10, 17] },
+      { id: "b_1600", person: "B", time: "16:00", message: "Uống thuốc hằng ngày", slots: [5, 11, 16] }
+    ];
+
+    let phase = "idle";
+    let scannedPerson = null;
+    let rankedOptions = [];
+    let openedOption = null;
+
+    const slotColor = {};
+    for (let i = 1; i <= 18; i++) slotColor[i] = "red";
+
+    // Lưu trạng thái mở/đóng tay tạm thời theo từng ô để tránh gói đồng bộ cũ ghi đè
+    const manualSlotOverride = {};
+
+    let client = null;
+    let currentUser = null;
+    let activeTab = "alarms";
+    let selectedPickerSlots = new Set([1]);
+
+    const notifiedPre5 = new Set();
+    const notifiedExact = new Set();
+
+    function loadJson(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (e) {
+        return fallback;
+      }
+    }
+
+    function saveJson(key, val) {
+      localStorage.setItem(key, JSON.stringify(val));
+    }
+
+    let alarms = loadJson(KEY_ALARMS, DEFAULT_ALARMS);
+    let logs = loadJson(KEY_LOGS, []);
+    let userStates = loadJson(KEY_STATE, {
+      A: { level: "yellow", text: "Chờ lấy thuốc theo lịch", lastTaken: "--" },
+      B: { level: "yellow", text: "Chờ lấy thuốc theo lịch", lastTaken: "--" }
+    });
+
+    function showToast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.classList.remove("hidden");
+      clearTimeout(window._tt);
+      window._tt = setTimeout(() => el.classList.add("hidden"), 2500);
+    }
+
+    function normalizeUid(u) {
+      return String(u || "").replace(/[\s:]/g, "").toUpperCase();
+    }
+
+    function sendVoiceToPyCharm(text, stage = "info") {
+      const clean = String(text || "").trim();
+      if (!clean) return;
+      if (client && client.connected) {
+        client.publish(TOPIC_TTS, JSON.stringify({
+          text: clean,
+          stage: stage,
+          time: new Date().toLocaleTimeString("vi-VN")
+        }));
+      }
+    }
+
+    function quickFill(u) {
+      document.getElementById("inp-user").value = u;
+      document.getElementById("inp-pass").value = "1234";
+    }
+
+    document.getElementById("login-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const u = document.getElementById("inp-user").value.trim().toLowerCase();
+      const p = document.getElementById("inp-pass").value.trim();
+      const err = document.getElementById("login-err");
+
+      if (USERS[u] && USERS[u].password === p) {
+        currentUser = { username: u, ...USERS[u] };
+        err.textContent = "";
+        enterApp();
+      } else {
+        err.textContent = "Sai tài khoản hoặc mật khẩu (1234)!";
+      }
+    });
+
+    function logout() {
+      if (client) {
+        try { client.end(true); } catch (e) {}
+        client = null;
+      }
+      currentUser = null;
+      document.getElementById("main-view").classList.add("hidden");
+      document.getElementById("login-view").classList.remove("hidden");
+    }
+
+    function enterApp() {
+      document.getElementById("hdr-name").textContent = currentUser.name;
+      document.getElementById("hdr-role").textContent = currentUser.label;
+      document.getElementById("login-view").classList.add("hidden");
+      document.getElementById("main-view").classList.remove("hidden");
+
+      const isAdmin = currentUser.role === "ADMIN";
+      document.getElementById("alarm-target-wrap").classList.toggle("hidden", !isAdmin);
+      document.getElementById("btn-clear-hist").classList.toggle("hidden", !isAdmin);
+
+      selectedPickerSlots = new Set([currentUser.role === "B" ? 4 : 1]);
+      renderSlotPicker();
+      switchTab("alarms");
+      renderAll();
+      connectMQTT();
+    }
+
+    function switchTab(tab) {
+      activeTab = tab;
+      ["alarms", "slots", "history", "voice"].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tab);
+      });
+      document.querySelectorAll(".nav-item").forEach(b => {
+        b.classList.toggle("active", b.dataset.tab === tab);
+      });
+      renderAll();
+    }
+
+    function renderAll() {
+      if (!currentUser) return;
+      renderPhaseUI();
+      renderAlarmsList();
+      renderSlotsGrid();
+      renderHistoryTab();
+    }
+
+    function timeToMinutes(hhmm) {
+      const [h, m] = String(hhmm || "00:00").split(":").map(Number);
+      return (h || 0) * 60 + (m || 0);
+    }
+
+    function removeDiacritics(str) {
+      return String(str || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D");
+    }
+
+    function syncScheduleToAll() {
+      if (!client || !client.connected) return;
+      const fmt = (p) => {
+        const arr = alarms.filter(x => x.person === p).map(x => {
+          const msgAscii = removeDiacritics(x.message);
+          return `${x.time} ${msgAscii}(${x.slots.join(",")})`;
+        });
+        return arr.length ? arr.join(" | ") : "Chua co lich";
+      };
+
+      const packAlarms = (p) => alarms.filter(x => x.person === p).map(x => ({
+        id: x.id,
+        person: x.person,
+        time: x.time,
+        message: x.message,
+        slots: x.slots
+      }));
+
+      client.publish(
+        TOPIC_SCHEDULE,
+        JSON.stringify({
+          summary_a: fmt("A"),
+          summary_b: fmt("B"),
+          alarms_a: packAlarms("A"),
+          alarms_b: packAlarms("B")
+        }),
+        { retain: true }
+      );
+    }
+
+    function applyIncomingSchedule(data) {
+      const hasA = Array.isArray(data.alarms_a);
+      const hasB = Array.isArray(data.alarms_b);
+      if (!hasA && !hasB) return;
+
+      const nextA = hasA ? data.alarms_a.map(item => ({
+        id: String(item.id || ("a_" + Math.random())),
+        person: "A",
+        time: String(item.time || "07:00"),
+        message: String(item.message || "Uống thuốc"),
+        slots: Array.isArray(item.slots) ? item.slots.map(Number) : []
+      })) : alarms.filter(x => x.person === "A");
+
+      const nextB = hasB ? data.alarms_b.map(item => ({
+        id: String(item.id || ("b_" + Math.random())),
+        person: "B",
+        time: String(item.time || "07:00"),
+        message: String(item.message || "Uống thuốc"),
+        slots: Array.isArray(item.slots) ? item.slots.map(Number) : []
+      })) : alarms.filter(x => x.person === "B");
+
+      alarms = [...nextA, ...nextB].sort((a, b) => a.time.localeCompare(b.time));
+      saveJson(KEY_ALARMS, alarms);
+      if (currentUser) renderAlarmsList();
+    }
+
+    function computeRankedOptions(person) {
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const personAlarms = alarms.filter(a => a.person === person);
+      const list = personAlarms.map(a => ({
+        ...a,
+        diffMin: Math.abs(timeToMinutes(a.time) - nowMin),
+        isNearest: false
+      }));
+      list.sort((x, y) => x.diffMin - y.diffMin);
+      if (list.length > 0) list[0].isNearest = true;
+      return list;
+    }
+
+    function onAuthenticatedFromHardware(person, viaLabel) {
+      if (phase !== "scanning") return;
+
+      scannedPerson = person;
+      phase = "picking_oled";
+      rankedOptions = computeRankedOptions(person);
+
+      for (let i = 1; i <= 18; i++) slotColor[i] = "red";
+      for (const opt of rankedOptions) {
+        for (const s of (opt.slots || [])) {
+          slotColor[s] = opt.isNearest ? "green" : "orange";
+        }
+      }
+
+      if (client && client.connected) {
+        client.publish(TOPIC_CMD, JSON.stringify({
+          action: "show_dose_options",
+          user: person,
+          options: rankedOptions.map(o => ({
+            id: o.id,
+            time: o.time,
+            message: removeDiacritics(o.message),
+            slots: o.slots,
+            is_nearest: o.isNearest
+          }))
+        }));
+      }
+
+      const whoLabel = person === "A" ? "Người A" : "Người B";
+      const nearestTime = rankedOptions.length ? rankedOptions[0].time : "";
+      sendVoiceToPyCharm(
+        `Đã xác nhận ${whoLabel} qua ${viaLabel}. Mốc gần nhất là ${nearestTime} màu hồng, các mốc xa hơn màu xanh. Mời chọn mốc trên màn hình tủ thuốc.`,
+        "scan_done_oled"
+      );
+
+      renderAll();
+    }
+
+    function remoteOpenAlarmOnApp(alarmId) {
+      const al = alarms.find(a => a.id === alarmId);
+      if (!al) return;
+      if (!client || !client.connected) {
+        showToast("Chưa kết nối MQTT!");
+        return;
+      }
+
+      scannedPerson = al.person;
+      openedOption = al;
+      phase = "opened";
+
+      for (let i = 1; i <= 18; i++) slotColor[i] = "red";
+      for (const s of (al.slots || [])) {
+        slotColor[s] = "green";
+        manualSlotOverride[s] = { isOpen: true, until: Date.now() + 2500 };
+      }
+
+      client.publish(TOPIC_CMD, JSON.stringify({
+        action: "remote_open_dose",
+        user: al.person,
+        id: al.id,
+        time: al.time,
+        message: removeDiacritics(al.message),
+        slots: al.slots
+      }));
+
+      const whoLabel = al.person === "A" ? "Người A" : "Người B";
+      const sListStr = (al.slots || []).join(", ");
+      sendVoiceToPyCharm(
+        `Mở từ xa cho ${whoLabel}, mốc ${al.time}: ${al.message}. Đang mở ô ${sListStr}.`,
+        "remote_open"
+      );
+
+      addLog({
+        person: al.person,
+        slot: sListStr,
+        action: `MỞ TỪ XA ${al.time}`,
+        detail: `${al.message} (Bởi ${currentUser.name})`
+      });
+
+      renderAll();
+      showToast(`Đã mở từ xa ô ${sListStr} (${al.time})`);
+    }
+
+    function finishAndCloseDoor() {
+      const pCode = scannedPerson || (currentUser && currentUser.role !== "ADMIN" ? currentUser.role : "A");
+      for (let i = 1; i <= 18; i++) {
+        slotColor[i] = "red";
+        manualSlotOverride[i] = { isOpen: false, until: Date.now() + 2500 };
+      }
+
+      if (client && client.connected) {
+        client.publish(TOPIC_CMD, JSON.stringify({
+          action: "finish_session",
+          user: pCode
+        }));
+      }
+
+      const whoLabel = pCode === "A" ? "Người A" : "Người B";
+      sendVoiceToPyCharm(`Đã đóng cửa kết thúc cho ${whoLabel}.`, "door_closed");
+
+      userStates[pCode] = {
+        level: "green",
+        text: "Đã uống thuốc & đóng cửa kết thúc",
+        lastTaken: new Date().toLocaleString("vi-VN")
+      };
+      saveJson(KEY_STATE, userStates);
+
+      phase = "idle";
+      scannedPerson = null;
+      rankedOptions = [];
+      openedOption = null;
+
+      renderAll();
+      showToast("Đã đóng cửa kết thúc");
+    }
+
+    function renderPhaseUI() {
+      const stVal = document.getElementById("scan-state-val");
+      const stSub = document.getElementById("scan-state-sub");
+      const oledCard = document.getElementById("oled-picking-card");
+      const openCard = document.getElementById("opened-door-card");
+
+      oledCard.classList.add("hidden");
+      openCard.classList.add("hidden");
+
+      if (phase === "idle") {
+        stVal.textContent = "CHỜ NHẬN THUỐC";
+        stVal.className = "tile-val warn";
+        stSub.textContent = "OLED chờ bấm Nhận thuốc";
+      } else if (phase === "scanning") {
+        stVal.textContent = "ĐANG CHỜ QUÉT";
+        stVal.className = "tile-val a";
+        stSub.textContent = "Quét thẻ RFID hoặc mặt";
+      } else if (phase === "picking_oled") {
+        const whoLabel = scannedPerson === "B" ? "Người B" : "Người A";
+        stVal.textContent = `ĐÃ QUÉT ${whoLabel.toUpperCase()}`;
+        stVal.className = "tile-val " + (scannedPerson === "B" ? "b" : "a");
+        stSub.textContent = "Đang chọn mốc trên OLED";
+
+        if (currentUser.role === "ADMIN" || currentUser.role === scannedPerson) {
+          const near = rankedOptions.find(o => o.isNearest);
+          document.getElementById("oled-picking-title").textContent =
+            `${whoLabel} đang chọn mốc giờ trên màn hình OLED`;
+          document.getElementById("oled-picking-desc").textContent = near
+            ? `Gần nhất (Hồng): ${near.time} - ${near.message} (Ô ${near.slots.join(",")}). Các mốc khác hiển thị màu Xanh trên OLED.`
+            : "Mời chạm chọn mốc trên màn hình OLED.";
+          oledCard.classList.remove("hidden");
+        }
+      } else if (phase === "opened" && openedOption) {
+        const whoLabel = scannedPerson === "B" ? "Người B" : "Người A";
+        stVal.textContent = "ĐANG MỞ CỬA";
+        stVal.className = "tile-val a";
+        stSub.textContent = `Ô ${(openedOption.slots || []).join(",")}`;
+
+        if (currentUser.role === "ADMIN" || currentUser.role === scannedPerson) {
+          document.getElementById("opened-door-title").textContent =
+            `${whoLabel} — Mốc ${openedOption.time || ""} (${openedOption.message || ""})`;
+          document.getElementById("opened-door-desc").textContent =
+            `Đang mở servo & sáng đèn các ô: ${(openedOption.slots || []).join(", ")}.`;
+          openCard.classList.remove("hidden");
+        }
+      }
+    }
+
+    function getPickerTargetPerson() {
+      if (!currentUser) return "A";
+      return currentUser.role === "ADMIN"
+        ? document.getElementById("alarm-target-person").value
+        : currentUser.role;
+    }
+
+    function renderSlotPicker() {
+      const person = getPickerTargetPerson();
+      const allowed = person === "B" ? SLOTS_B : SLOTS_A;
+      const box = document.getElementById("slot-picker");
+
+      const valid = [...selectedPickerSlots].filter(s => allowed.includes(s));
+      selectedPickerSlots = new Set(valid.length ? valid : [allowed[0]]);
+
+      box.innerHTML = allowed.map(s => {
+        const sel = selectedPickerSlots.has(s) ? "selected" : "";
+        return `<div class="pick-chip ${sel}" onclick="togglePickSlot(${s})">${s}</div>`;
+      }).join("");
+    }
+
+    function togglePickSlot(s) {
+      if (selectedPickerSlots.has(s)) {
+        if (selectedPickerSlots.size > 1) selectedPickerSlots.delete(s);
+      } else {
+        selectedPickerSlots.add(s);
+      }
+      renderSlotPicker();
+    }
+
+    function addAlarm() {
+      const person = getPickerTargetPerson();
+      const timeVal = document.getElementById("alarm-time").value;
+      const msgVal = document.getElementById("alarm-msg").value.trim() || "Uống thuốc";
+      const slots = [...selectedPickerSlots].sort((a, b) => a - b);
+
+      if (!timeVal || !slots.length) {
+        showToast("Chọn giờ và ít nhất 1 ô thuốc!");
+        return;
+      }
+
+      alarms.push({
+        id: "al_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+        person,
+        time: timeVal,
+        message: msgVal,
+        slots
+      });
+      alarms.sort((a, b) => a.time.localeCompare(b.time));
+      saveJson(KEY_ALARMS, alarms);
+      syncScheduleToAll();
+      renderAlarmsList();
+      document.getElementById("alarm-msg").value = "";
+      showToast(`Đã lưu & đồng bộ lịch ${timeVal}`);
+    }
+
+    function deleteAlarm(id) {
+      alarms = alarms.filter(a => a.id !== id);
+      saveJson(KEY_ALARMS, alarms);
+      syncScheduleToAll();
+      renderAlarmsList();
+      showToast("Đã xóa & đồng bộ lại cho tất cả");
+    }
+
+    function renderAlarmsList() {
+      const box = document.getElementById("alarms-list");
+      const title = document.getElementById("alarm-list-title");
+      let list = alarms;
+
+      if (currentUser.role === "A") {
+        title.textContent = "Lịch báo thuốc của Người A";
+        list = alarms.filter(a => a.person === "A");
+      } else if (currentUser.role === "B") {
+        title.textContent = "Lịch báo thuốc của Người B";
+        list = alarms.filter(a => a.person === "B");
+      } else {
+        title.textContent = "Lịch báo thuốc của Người A & Người B";
+      }
+
+      if (!list.length) {
+        box.innerHTML = `<div class="card" style="text-align:center;color:var(--muted);font-size:12px;">Chưa có mốc giờ.</div>`;
+        return;
+      }
+
+      box.innerHTML = list.map(a => `
+        <div class="alarm-item">
+          <div>
+            <div class="alarm-time">${a.time} <span style="font-size:12px;color:var(--muted);">(${a.person === "A" ? "Người A" : "Người B"})</span></div>
+            <div class="alarm-desc">${a.message}</div>
+            <div class="alarm-slots">Ô: ${a.slots.join(", ")}</div>
+          </div>
+          <div class="alarm-btns">
+            <button type="button" class="btn-sm open" onclick="remoteOpenAlarmOnApp('${a.id}')">Mở từ xa</button>
+            <button type="button" class="btn-sm del" onclick="deleteAlarm('${a.id}')">Xóa</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    // ================= 18 NGĂN (MỞ & ĐÓNG SERVO TRÊN WEB) =================
+    function canTouchSlot(slotNum) {
+      if (!currentUser) return false;
+      if (currentUser.role === "ADMIN") return true;
+      if (currentUser.role === "A") return SLOTS_A.includes(slotNum);
+      if (currentUser.role === "B") return SLOTS_B.includes(slotNum);
+      return false;
+    }
+
+    function renderSlotsGrid() {
+      const grid = document.getElementById("slots-grid");
+      const heading = document.getElementById("slots-heading");
+
+      if (currentUser.role === "A") heading.textContent = "Ngăn Người A (1,2,3,7,8,9,13,14,15)";
+      else if (currentUser.role === "B") heading.textContent = "Ngăn Người B (4,5,6,10,11,12,16,17,18)";
+      else heading.textContent = "Toàn bộ 18 Ngăn (Quản lý cấp thuốc)";
+
+      grid.innerHTML = "";
+      for (let i = 1; i <= 18; i++) {
+        const isA = SLOTS_A.includes(i);
+        const ownerCode = isA ? "A" : "B";
+        const allowed = canTouchSlot(i);
+        const c = slotColor[i] || "red";
+
+        let cls = `slot-card ${ownerCode === "A" ? "owner-a" : "owner-b"} ${!allowed ? "locked" : ""}`;
+        let txt = "ĐÓNG";
+        if (c === "green") { cls += " st-green"; txt = "MỞ (XANH)"; }
+        else if (c === "orange") { cls += " st-orange"; txt = "CAM"; }
+
+        const card = document.createElement("div");
+        card.className = cls;
+        card.onclick = () => manualSlot(i, ownerCode);
+        card.innerHTML = `
+          <div class="slot-top">
+            <span class="slot-id">Ô ${String(i).padStart(2, "0")}</span>
+            <span class="slot-tag ${ownerCode === "A" ? "a" : "b"}">${ownerCode}</span>
+          </div>
+          <div class="slot-sub">${allowed ? (isA ? "Người A" : "Người B") : "Bị khóa"}</div>
+          <span class="slot-st">${txt}</span>
+        `;
+        grid.appendChild(card);
+      }
+    }
+
+    function manualSlot(slotNum, ownerCode) {
+      if (!canTouchSlot(slotNum)) {
+        showToast("Không thuộc quyền của bạn!");
+        return;
+      }
+      if (!client || !client.connected) {
+        showToast("Chưa kết nối MQTT!");
+        return;
+      }
+
+      const isCurrentlyOpen = slotColor[slotNum] === "green";
+      const nextOpen = !isCurrentlyOpen;
+      slotColor[slotNum] = nextOpen ? "green" : "red";
+      manualSlotOverride[slotNum] = { isOpen: nextOpen, until: Date.now() + 2500 };
+
+      client.publish(TOPIC_CMD, JSON.stringify({
+        slot: slotNum,
+        servo: nextOpen ? "open" : "close"
+      }));
+
+      sendVoiceToPyCharm(
+        nextOpen ? `Đã mở servo ô ${slotNum}.` : `Đã đóng servo ô ${slotNum}.`,
+        "manual_slot"
+      );
+
+      addLog({
+        person: currentUser.role === "ADMIN" ? ownerCode : currentUser.role,
+        slot: String(slotNum),
+        action: nextOpen ? "MỞ SERVO" : "ĐÓNG SERVO",
+        detail: `Bởi ${currentUser.name}`
+      });
+
+      renderSlotsGrid();
+      showToast(nextOpen ? `Đã mở ô ${slotNum}` : `Đã đóng ô ${slotNum}`);
+    }
+
+    function addLog(entry) {
+      logs.unshift({
+        time: new Date().toLocaleString("vi-VN"),
+        ...entry
+      });
+      if (logs.length > 300) logs.length = 300;
+      saveJson(KEY_LOGS, logs);
+      if (activeTab === "history") renderHistoryTab();
+    }
+
+    function renderHistoryTab() {
+      const stWrap = document.getElementById("status-cards-wrap");
+      const histWrap = document.getElementById("history-list-wrap");
+      const visiblePersons = currentUser.role === "ADMIN" ? ["A", "B"] : [currentUser.role];
+
+      stWrap.innerHTML = visiblePersons.map(p => {
+        const s = userStates[p] || { level: "yellow", text: "Đang chờ", lastTaken: "--" };
+        const pName = p === "A" ? "Người A (nam)" : "Người B (nu)";
+        const badge = s.level === "green" ? "XANH • ĐÃ UỐNG" : s.level === "yellow" ? "VÀNG • CHỜ" : "ĐỎ • CẢNH BÁO";
+        return `
+          <div class="status-box ${s.level}">
+            <div style="display:flex;justify-content:space-between;">
+              <b>${pName}</b>
+              <span style="font-size:11px;font-weight:800;">${badge}</span>
+            </div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">${s.text} • Lần cuối: ${s.lastTaken}</div>
+          </div>
+        `;
+      }).join("");
+
+      const rows = logs.filter(item => visiblePersons.includes(item.person));
+      if (!rows.length) {
+        histWrap.innerHTML = `<div class="card" style="text-align:center;color:var(--muted);font-size:12px;">Chưa có lịch sử.</div>`;
+        return;
+      }
+
+      histWrap.innerHTML = rows.map(item => `
+        <div class="log-card">
+          <div>
+            <div style="font-weight:700;">${item.person === "A" ? "Người A" : "Người B"} • Ô ${item.slot} — <span style="color:var(--primary);">${item.action}</span></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">${item.time} • ${item.detail || ""}</div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function clearHistory() {
+      if (currentUser.role !== "ADMIN") return;
+      logs = [];
+      saveJson(KEY_LOGS, logs);
+      renderHistoryTab();
+      showToast("Đã xóa lịch sử");
+    }
+
+    setInterval(() => {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mm = String(now.getMinutes()).padStart(2, "0");
+      const ss = String(now.getSeconds()).padStart(2, "0");
+      const clk = document.getElementById("live-clock");
+      if (clk) clk.textContent = `${hh}:${mm}:${ss}`;
+
+      if (!currentUser) return;
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+      const dayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+
+      for (const al of alarms) {
+        const targetMins = timeToMinutes(al.time);
+        const diff = targetMins - nowMins;
+        const pLabel = al.person === "A" ? "Người A" : "Người B";
+
+        const kPre = `${dayKey}_${al.id}_pre5`;
+        if (diff === 5 && !notifiedPre5.has(kPre)) {
+          notifiedPre5.add(kPre);
+          sendVoiceToPyCharm(`Nhắc trước 5 phút: ${pLabel} chuẩn bị uống thuốc lúc ${al.time}, ${al.message}.`, "pre_5_min");
+          showToast(`Nhắc trước 5 phút (${al.time}) cho ${pLabel}`);
+        }
+
+        const kExact = `${dayKey}_${al.id}_exact`;
+        if (diff === 0 && !notifiedExact.has(kExact)) {
+          notifiedExact.add(kExact);
+          userStates[al.person] = {
+            level: "yellow",
+            text: `Đến giờ ${al.time}: ${al.message}`,
+            lastTaken: userStates[al.person]?.lastTaken || "--"
+          };
+          saveJson(KEY_STATE, userStates);
+          sendVoiceToPyCharm(`Đã đến giờ ${al.time}: ${pLabel}, ${al.message}.`, "exact_time");
+          renderHistoryTab();
+        }
+      }
+    }, 1000);
+
+    function connectMQTT() {
+      const dot = document.getElementById("mqtt-dot");
+      const txt = document.getElementById("mqtt-txt");
+
+      if (typeof mqtt === "undefined") {
+        dot.className = "dot err";
+        txt.textContent = "Lỗi thư viện MQTT";
+        return;
+      }
+
+      client = mqtt.connect(MQTT_WS_URL, {
+        clientId: "MediBox_Web_" + Math.random().toString(16).slice(2, 8),
+        clean: true,
+        reconnectPeriod: 3000
+      });
+
+      client.on("connect", () => {
+        dot.className = "dot ok";
+        txt.textContent = "MQTT Online";
+        client.subscribe(TOPIC_SCHEDULE);
+        client.subscribe(TOPIC_RFID);
+        client.subscribe(TOPIC_STATUS);
+        client.subscribe(TOPIC_CAMERA);
+        client.subscribe(TOPIC_EVENT);
+        client.subscribe(TOPIC_STATE);
+        syncScheduleToAll();
+      });
+
+      client.on("reconnect", () => {
+        dot.className = "dot";
+        txt.textContent = "Đang kết nối lại...";
+      });
+
+      client.on("error", () => {
+        dot.className = "dot err";
+        txt.textContent = "Lỗi kết nối";
+      });
+
+      client.on("message", (topic, message) => {
+        try {
+          const data = JSON.parse(message.toString());
+
+          if (topic === TOPIC_SCHEDULE) {
+            applyIncomingSchedule(data);
+          } else if (topic === TOPIC_STATE && data.phase) {
+            const p = data.phase;
+            const nowMs = Date.now();
+            if (p === "idle" && phase !== "idle") {
+              phase = "idle";
+              scannedPerson = null;
+              openedOption = null;
+              for (let i = 1; i <= 18; i++) {
+                const ov = manualSlotOverride[i];
+                if (!ov || nowMs > ov.until) {
+                  slotColor[i] = "red";
+                }
+              }
+              renderPhaseUI();
+              renderSlotsGrid();
+            } else if (p === "picking" && data.user) {
+              phase = "picking_oled";
+              scannedPerson = data.user;
+              rankedOptions = computeRankedOptions(data.user);
+              renderPhaseUI();
+            } else if (p === "opened") {
+              phase = "opened";
+              scannedPerson = data.user || "A";
+              openedOption = {
+                person: scannedPerson,
+                time: data.time || "",
+                message: data.message || "",
+                slots: Array.isArray(data.open_slots) ? data.open_slots : []
+              };
+              for (let i = 1; i <= 18; i++) {
+                const ov = manualSlotOverride[i];
+                if (!ov || nowMs > ov.until) slotColor[i] = "red";
+              }
+              for (const s of openedOption.slots) slotColor[s] = "green";
+              renderPhaseUI();
+              renderSlotsGrid();
+            }
+          } else if (topic === TOPIC_RFID && data.uid) {
+            const uid = normalizeUid(data.uid);
+            document.getElementById("rfid-val").textContent = uid;
+            document.getElementById("rfid-sub").textContent = "Lúc: " + new Date().toLocaleTimeString("vi-VN");
+            const role = UID_MAP[uid];
+            if (role === "A" || role === "B") {
+              onAuthenticatedFromHardware(role, `thẻ ${uid}`);
+            } else if (role === "ADMIN") {
+              showToast("Đã quét thẻ Quản lý");
+              if (currentUser && currentUser.role === "ADMIN") switchTab("slots");
+            }
+          } else if (topic === TOPIC_CAMERA) {
+            if (phase !== "scanning") return;
+            const pRaw = String(data.person || "").toUpperCase();
+            if (pRaw.includes("NGƯỜI A") || pRaw === "A") {
+              onAuthenticatedFromHardware("A", "khuôn mặt");
+            } else if (pRaw.includes("NGƯỜI B") || pRaw === "B") {
+              onAuthenticatedFromHardware("B", "khuôn mặt");
+            }
+          } else if (topic === TOPIC_EVENT) {
+            if (data.event === "start_scan" && phase === "idle") {
+              phase = "scanning";
+              renderPhaseUI();
+            } else if (data.event === "option_selected") {
+              const chosen = rankedOptions.find(o => o.id === data.detail)
+                || alarms.find(a => a.id === data.detail);
+              if (chosen) {
+                openedOption = chosen;
+                scannedPerson = chosen.person;
+                phase = "opened";
+                for (let i = 1; i <= 18; i++) slotColor[i] = "red";
+                for (const s of (chosen.slots || [])) slotColor[s] = "green";
+                addLog({
+                  person: chosen.person,
+                  slot: (chosen.slots || []).join(","),
+                  action: `CHỌN TRÊN OLED ${chosen.time}`,
+                  detail: chosen.message
+                });
+                renderAll();
+              }
+            } else if (data.event === "session_finished") {
+              for (let i = 1; i <= 18; i++) slotColor[i] = "red";
+              const actor = data.actor === "B" ? "B" : "A";
+              userStates[actor] = {
+                level: "green",
+                text: "Đã uống thuốc & đóng cửa trên mô hình",
+                lastTaken: new Date().toLocaleString("vi-VN")
+              };
+              saveJson(KEY_STATE, userStates);
+              phase = "idle";
+              scannedPerson = null;
+              rankedOptions = [];
+              openedOption = null;
+              renderAll();
+            }
+          } else if (topic === TOPIC_STATUS && data.slot) {
+            const s = parseInt(data.slot, 10);
+            if (s >= 1 && s <= 18) {
+              const ov = manualSlotOverride[s];
+              if (ov && Date.now() <= ov.until) return;
+              if (data.state === "open") slotColor[s] = "green";
+              else if (data.led === "orange") slotColor[s] = "orange";
+              else slotColor[s] = "red";
+              if (activeTab === "slots") renderSlotsGrid();
+            }
+          }
+        } catch (e) {}
+      });
+    }
+  </script>
+</body>
+</html>
