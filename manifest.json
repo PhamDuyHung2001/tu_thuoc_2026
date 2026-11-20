@@ -1,0 +1,25 @@
+{
+  "name": "MediCare Smart Box",
+  "short_name": "MediCare",
+  "description": "Tủ thuốc thông minh 18 ngăn, lịch báo thuốc, RFID & Camera AI",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070d19",
+  "theme_color": "#070d19",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='44' fill='%230284c7'/%3E%3Crect x='82' y='44' width='28' height='104' rx='8' fill='%23ffffff'/%3E%3Crect x='44' y='82' width='104' height='28' rx='8' fill='%23ffffff'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%230284c7'/%3E%3Crect x='218' y='118' width='76' height='276' rx='20' fill='%23ffffff'/%3E%3Crect x='118' y='218' width='276' height='76' rx='20' fill='%23ffffff'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
