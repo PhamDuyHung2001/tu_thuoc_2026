@@ -1293,6 +1293,7 @@
       return list;
     }
 
+    // Mốc gần nhất = viền xanh, mốc xa hơn = viền hồng
     function onAuthenticatedFromHardware(person, viaLabel) {
       if (phase !== "scanning") return;
 
@@ -1323,7 +1324,7 @@
         showToast(`⚠️ ${whoLabel} đã uống cữ ${nearestOpt.time} lúc ${atStr}`);
       } else if (nearestOpt) {
         sendVoiceToPyCharm(
-          `Đã xác nhận ${whoLabel} qua ${viaLabel}. Mốc gần nhất là ${nearestOpt.time} viền xanh, các mốc còn lại viền hồng. Mời chọn mốc trên màn hình tủ thuốc.`,
+          `Đã xác nhận ${whoLabel} qua ${viaLabel}. Mốc gần nhất là ${nearestOpt.time} viền xanh, các mốc xa hơn viền hồng. Mời chọn mốc trên màn hình tủ thuốc.`,
           "scan_done_oled"
         );
       }
@@ -1469,7 +1470,7 @@
           document.getElementById("oled-picking-title").textContent =
             `${whoLabel} đang chọn mốc giờ trên màn hình`;
           document.getElementById("oled-picking-desc").textContent = near
-            ? `Gần nhất (Viền hồng): ${near.time} - ${near.message} (Ô ${near.slots.join(",")}).${dupNote}`
+            ? `Gần nhất (Viền xanh): ${near.time} - ${near.message} (Ô ${near.slots.join(",")}).${dupNote}`
             : "Mời chạm chọn mốc trên màn hình.";
           oledCard.classList.remove("hidden");
         }
