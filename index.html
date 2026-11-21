@@ -172,6 +172,21 @@
       cursor: pointer;
     }
 
+    .admin-alert-box {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(249, 115, 22, 0.2));
+      border: 1.5px solid var(--red);
+      border-radius: 16px;
+      padding: 13px 14px;
+      margin: 0 14px 12px;
+      animation: alertPulse 1.2s infinite alternate;
+    }
+    @keyframes alertPulse {
+      from { box-shadow: 0 0 0 rgba(239, 68, 68, 0.1); }
+      to { box-shadow: 0 0 18px rgba(239, 68, 68, 0.45); }
+    }
+    .admin-alert-title { font-size: 14px; font-weight: 800; color: #fca5a5; margin-bottom: 4px; }
+    .admin-alert-desc { font-size: 12px; color: #f8fafc; line-height: 1.45; }
+
     .sensor-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 14px; }
     .sensor-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 11px 12px; }
     .sensor-tile.cam { border-left: 3px solid var(--primary); }
@@ -182,6 +197,45 @@
     .tile-val.b { color: var(--accent-b); }
     .tile-val.warn { color: var(--yellow); }
     .tile-meta { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+    .find-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px 14px;
+      margin: 0 14px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .find-box.active {
+      border-color: var(--yellow);
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(56, 189, 248, 0.12));
+    }
+    .find-title { font-size: 13px; font-weight: 800; color: var(--text); }
+    .find-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .find-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .btn-find {
+      padding: 8px 12px;
+      border-radius: 11px;
+      border: none;
+      background: linear-gradient(135deg, #f59e0b, #ea580c);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-stop-find {
+      padding: 8px 12px;
+      border-radius: 11px;
+      border: 1px solid rgba(239, 68, 68, 0.55);
+      background: var(--red-soft);
+      color: #fca5a5;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
 
     .oled-sync-box {
       background: var(--surface);
@@ -399,11 +453,16 @@
         <button type="button" class="btn-exit" onclick="logout()">Thoát</button>
       </header>
 
+      <div id="admin-door-alert-card" class="admin-alert-box hidden">
+        <div id="admin-door-alert-title" class="admin-alert-title">CẢNH BÁO MỞ CỬA QUÁ 1 PHÚT</div>
+        <div id="admin-door-alert-desc" class="admin-alert-desc"></div>
+      </div>
+
       <div class="sensor-strip">
         <div class="sensor-tile cam">
           <div class="tile-kicker">Trạng thái đồng bộ</div>
           <div id="scan-state-val" class="tile-val warn">CHỜ NHẬN THUỐC</div>
-          <div id="scan-state-sub" class="tile-meta">Bấm Nhận thuốc trên OLED để quét</div>
+          <div id="scan-state-sub" class="tile-meta">Bấm Nhận thuốc trên màn hình để quét</div>
         </div>
         <div class="sensor-tile rfid">
           <div class="tile-kicker">Thẻ từ RFID</div>
@@ -412,9 +471,20 @@
         </div>
       </div>
 
+      <div id="find-box-card" class="find-box">
+        <div>
+          <div id="find-box-title" class="find-title">Tìm tủ thuốc</div>
+          <div id="find-box-sub" class="find-sub">Nháy 18 đèn + lặp lại "Tủ thuốc ở đây" (nghỉ 1.5s)</div>
+        </div>
+        <div class="find-actions">
+          <button type="button" id="btn-find-box" class="btn-find" onclick="startFindBox()">Tìm tủ</button>
+          <button type="button" id="btn-stop-find-box" class="btn-stop-find hidden" onclick="stopFindBox()">Tắt</button>
+        </div>
+      </div>
+
       <div id="oled-picking-card" class="oled-sync-box hidden">
         <div id="oled-picking-title" style="font-size:14px;font-weight:800;color:var(--primary);margin-bottom:4px;">
-          Đang chờ chọn mốc trên màn hình OLED
+          Đang chờ chọn mốc trên màn hình
         </div>
         <div id="oled-picking-desc" style="font-size:12px;color:#cbd5e1;line-height:1.5;"></div>
       </div>
@@ -553,10 +623,18 @@
       { id: "b_1600", person: "B", time: "16:00", message: "Uống thuốc hằng ngày", slots: [5, 11, 16] }
     ];
 
+    // Cảnh báo nếu mở cửa quá 60 giây (1 phút) mà chưa đóng
+    const DOOR_OPEN_ALERT_MS = 60000;
+    let doorOpenedAtMs = null;
+    let doorOver1MinAlerted = false;
+    let adminDoorAlertBanner = null;
+
     let phase = "idle";
     let scannedPerson = null;
     let rankedOptions = [];
     let openedOption = null;
+    let isFindingBox = false;
+    let findBoxLoopTimer = null;
 
     const slotColor = {};
     for (let i = 1; i <= 18; i++) slotColor[i] = "red";
@@ -596,7 +674,101 @@
       el.textContent = msg;
       el.classList.remove("hidden");
       clearTimeout(window._tt);
-      window._tt = setTimeout(() => el.classList.add("hidden"), 2500);
+      window._tt = setTimeout(() => el.classList.add("hidden"), 3000);
+    }
+
+    function playAlertBeepOnWeb() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const notes = [880, 660, 880];
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.value = freq;
+          gain.gain.value = 0.12;
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          const start = ctx.currentTime + idx * 0.18;
+          osc.start(start);
+          osc.stop(start + 0.14);
+        });
+      } catch (e) {}
+    }
+
+    function onDoorOpenedState() {
+      if (doorOpenedAtMs === null) {
+        doorOpenedAtMs = Date.now();
+        doorOver1MinAlerted = false;
+      }
+    }
+
+    function onDoorClosedState() {
+      doorOpenedAtMs = null;
+      doorOver1MinAlerted = false;
+      adminDoorAlertBanner = null;
+      renderAdminDoorAlertUI();
+    }
+
+    function renderAdminDoorAlertUI() {
+      const box = document.getElementById("admin-door-alert-card");
+      const titleEl = document.getElementById("admin-door-alert-title");
+      const descEl = document.getElementById("admin-door-alert-desc");
+      if (!box) return;
+
+      const isAdmin = currentUser && currentUser.role === "ADMIN";
+      if (!isAdmin || !adminDoorAlertBanner) {
+        box.classList.add("hidden");
+        return;
+      }
+      titleEl.textContent = adminDoorAlertBanner.title;
+      descEl.textContent = adminDoorAlertBanner.desc;
+      box.classList.remove("hidden");
+    }
+
+    function checkDoorOpenOver1Minute() {
+      if (phase !== "opened" || doorOpenedAtMs === null || doorOver1MinAlerted) return;
+      if (Date.now() - doorOpenedAtMs >= DOOR_OPEN_ALERT_MS) {
+        doorOver1MinAlerted = true;
+        const pCode = scannedPerson || "A";
+        const whoLabel = pCode === "B" ? "Người B" : "Người A";
+        const slotTxt = (openedOption && openedOption.slots && openedOption.slots.length)
+          ? ` (Ô ${openedOption.slots.join(", ")})`
+          : "";
+        const msg = `${whoLabel}${slotTxt} mở cửa đã quá 1 phút nhưng chưa đóng cửa`;
+
+        userStates[pCode] = {
+          level: "red",
+          text: msg,
+          lastTaken: userStates[pCode]?.lastTaken || "--"
+        };
+        saveJson(KEY_STATE, userStates);
+
+        addLog({
+          person: pCode,
+          slot: (openedOption && openedOption.slots && openedOption.slots.length) ? openedOption.slots.join(",") : "--",
+          action: "CẢNH BÁO QUÁ 1 PHÚT",
+          detail: msg
+        });
+
+        adminDoorAlertBanner = {
+          title: "⚠️ CẢNH BÁO MỞ CỬA QUÁ 1 PHÚT",
+          desc: `${msg}. Vui lòng kiểm tra hoặc đóng cửa.`
+        };
+        renderAdminDoorAlertUI();
+
+        // Phát âm thanh qua loa PC (PyCharm) + tiếng bíp cảnh báo trên app quản lý
+        sendVoiceToPyCharm(`Cảnh báo quản lý: ${msg}.`, "door_open_1min_alert");
+        if (currentUser && currentUser.role === "ADMIN") {
+          playAlertBeepOnWeb();
+          showToast(`⚠️ ${msg}!`);
+        }
+        if (currentUser && activeTab === "history") {
+          renderHistoryTab();
+        }
+      }
     }
 
     function normalizeUid(u) {
@@ -611,6 +783,75 @@
           text: clean,
           stage: stage,
           time: new Date().toLocaleTimeString("vi-VN")
+        }));
+      }
+    }
+
+    function renderFindBoxUI() {
+      const card = document.getElementById("find-box-card");
+      const title = document.getElementById("find-box-title");
+      const sub = document.getElementById("find-box-sub");
+      const btnStop = document.getElementById("btn-stop-find-box");
+      if (!card) return;
+
+      card.classList.toggle("active", isFindingBox);
+      btnStop.classList.toggle("hidden", !isFindingBox);
+      if (isFindingBox) {
+        title.textContent = "Đang tìm tủ thuốc...";
+        sub.textContent = "Đang lặp: \"Tủ thuốc ở đây\" (nghỉ 1.5s) • Bấm Tắt để dừng";
+      } else {
+        title.textContent = "Tìm tủ thuốc";
+        sub.textContent = "Nháy 18 đèn + lặp lại \"Tủ thuốc ở đây\" (nghỉ 1.5s)";
+      }
+    }
+
+    function scheduleNextFindBoxSpeak() {
+      if (!isFindingBox) return;
+      findBoxLoopTimer = setTimeout(() => {
+        if (!isFindingBox) return;
+        sendVoiceToPyCharm("Tủ thuốc ở đây", "find_box");
+        scheduleNextFindBoxSpeak();
+      }, 2700);
+    }
+
+    function startFindBox() {
+      if (!client || !client.connected) {
+        showToast("Chưa kết nối MQTT!");
+        return;
+      }
+
+      if (findBoxLoopTimer) {
+        clearTimeout(findBoxLoopTimer);
+        findBoxLoopTimer = null;
+      }
+
+      isFindingBox = true;
+      renderFindBoxUI();
+      showToast("Đang phát tín hiệu tìm tủ thuốc...");
+
+      client.publish(TOPIC_CMD, JSON.stringify({
+        action: "find_box",
+        active: true,
+        interval_ms: 500
+      }));
+
+      sendVoiceToPyCharm("Tủ thuốc ở đây", "find_box");
+      scheduleNextFindBoxSpeak();
+    }
+
+    function stopFindBox() {
+      isFindingBox = false;
+      if (findBoxLoopTimer) {
+        clearTimeout(findBoxLoopTimer);
+        findBoxLoopTimer = null;
+      }
+      renderFindBoxUI();
+      showToast("Đã tắt tìm tủ thuốc");
+
+      if (client && client.connected) {
+        client.publish(TOPIC_CMD, JSON.stringify({
+          action: "stop_find_box",
+          active: false
         }));
       }
     }
@@ -636,6 +877,7 @@
     });
 
     function logout() {
+      if (isFindingBox) stopFindBox();
       if (client) {
         try { client.end(true); } catch (e) {}
         client = null;
@@ -657,6 +899,8 @@
 
       selectedPickerSlots = new Set([currentUser.role === "B" ? 4 : 1]);
       renderSlotPicker();
+      renderFindBoxUI();
+      renderAdminDoorAlertUI();
       switchTab("alarms");
       renderAll();
       connectMQTT();
@@ -676,6 +920,8 @@
     function renderAll() {
       if (!currentUser) return;
       renderPhaseUI();
+      renderFindBoxUI();
+      renderAdminDoorAlertUI();
       renderAlarmsList();
       renderSlotsGrid();
       renderHistoryTab();
@@ -813,6 +1059,7 @@
       scannedPerson = al.person;
       openedOption = al;
       phase = "opened";
+      onDoorOpenedState();
 
       for (let i = 1; i <= 18; i++) slotColor[i] = "red";
       for (const s of (al.slots || [])) {
@@ -848,6 +1095,8 @@
     }
 
     function finishAndCloseDoor() {
+      if (isFindingBox) stopFindBox();
+      onDoorClosedState();
       const pCode = scannedPerson || (currentUser && currentUser.role !== "ADMIN" ? currentUser.role : "A");
       for (let i = 1; i <= 18; i++) {
         slotColor[i] = "red";
@@ -892,7 +1141,7 @@
       if (phase === "idle") {
         stVal.textContent = "CHỜ NHẬN THUỐC";
         stVal.className = "tile-val warn";
-        stSub.textContent = "OLED chờ bấm Nhận thuốc";
+        stSub.textContent = "Màn hình chờ bấm Nhận thuốc";
       } else if (phase === "scanning") {
         stVal.textContent = "ĐANG CHỜ QUÉT";
         stVal.className = "tile-val a";
@@ -901,15 +1150,15 @@
         const whoLabel = scannedPerson === "B" ? "Người B" : "Người A";
         stVal.textContent = `ĐÃ QUÉT ${whoLabel.toUpperCase()}`;
         stVal.className = "tile-val " + (scannedPerson === "B" ? "b" : "a");
-        stSub.textContent = "Đang chọn mốc trên OLED";
+        stSub.textContent = "Đang chọn mốc trên màn hình";
 
         if (currentUser.role === "ADMIN" || currentUser.role === scannedPerson) {
           const near = rankedOptions.find(o => o.isNearest);
           document.getElementById("oled-picking-title").textContent =
-            `${whoLabel} đang chọn mốc giờ trên màn hình OLED`;
+            `${whoLabel} đang chọn mốc giờ trên màn hình`;
           document.getElementById("oled-picking-desc").textContent = near
-            ? `Gần nhất (Viền xanh): ${near.time} - ${near.message} (Ô ${near.slots.join(",")}). Các mốc còn lại hiển thị viền Cam trên OLED.`
-            : "Mời chạm chọn mốc trên màn hình OLED.";
+            ? `Gần nhất (Viền xanh): ${near.time} - ${near.message} (Ô ${near.slots.join(",")}). Các mốc còn lại hiển thị viền Cam.`
+            : "Mời chạm chọn mốc trên màn hình.";
           oledCard.classList.remove("hidden");
         }
       } else if (phase === "opened" && openedOption) {
@@ -1169,6 +1418,8 @@
       if (clk) clk.textContent = `${hh}:${mm}:${ss}`;
 
       if (!currentUser) return;
+      checkDoorOpenOver1Minute();
+
       const nowMins = now.getHours() * 60 + now.getMinutes();
       const dayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
 
@@ -1250,6 +1501,7 @@
               phase = "idle";
               scannedPerson = null;
               openedOption = null;
+              onDoorClosedState();
               for (let i = 1; i <= 18; i++) {
                 const ov = manualSlotOverride[i];
                 if (!ov || nowMs > ov.until) {
@@ -1264,6 +1516,7 @@
               rankedOptions = computeRankedOptions(data.user);
               renderPhaseUI();
             } else if (p === "opened") {
+              const wasNotOpened = phase !== "opened";
               phase = "opened";
               scannedPerson = data.user || "A";
               openedOption = {
@@ -1272,6 +1525,7 @@
                 message: data.message || "",
                 slots: Array.isArray(data.open_slots) ? data.open_slots : []
               };
+              if (wasNotOpened) onDoorOpenedState();
               for (let i = 1; i <= 18; i++) {
                 const ov = manualSlotOverride[i];
                 if (!ov || nowMs > ov.until) slotColor[i] = "red";
@@ -1303,6 +1557,13 @@
             if (data.event === "start_scan" && phase === "idle") {
               phase = "scanning";
               renderPhaseUI();
+            } else if (data.event === "find_box_stopped") {
+              isFindingBox = false;
+              if (findBoxLoopTimer) {
+                clearTimeout(findBoxLoopTimer);
+                findBoxLoopTimer = null;
+              }
+              renderFindBoxUI();
             } else if (data.event === "option_selected") {
               const chosen = rankedOptions.find(o => o.id === data.detail)
                 || alarms.find(a => a.id === data.detail);
@@ -1310,17 +1571,19 @@
                 openedOption = chosen;
                 scannedPerson = chosen.person;
                 phase = "opened";
+                onDoorOpenedState();
                 for (let i = 1; i <= 18; i++) slotColor[i] = "red";
                 for (const s of (chosen.slots || [])) slotColor[s] = "green";
                 addLog({
                   person: chosen.person,
                   slot: (chosen.slots || []).join(","),
-                  action: `CHỌN TRÊN OLED ${chosen.time}`,
+                  action: `CHỌN TRÊN MÀN HÌNH ${chosen.time}`,
                   detail: chosen.message
                 });
                 renderAll();
               }
             } else if (data.event === "session_finished") {
+              onDoorClosedState();
               for (let i = 1; i <= 18; i++) slotColor[i] = "red";
               const actor = data.actor === "B" ? "B" : "A";
               userStates[actor] = {
