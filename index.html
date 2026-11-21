@@ -454,7 +454,7 @@
       </header>
 
       <div id="admin-door-alert-card" class="admin-alert-box hidden">
-        <div id="admin-door-alert-title" class="admin-alert-title">CẢNH BÁO MỞ CỬA QUÁ 1 PHÚT</div>
+        <div id="admin-door-alert-title" class="admin-alert-title">CẢNH BÁO MỞ CỬA QUÁ 30 GIÂY</div>
         <div id="admin-door-alert-desc" class="admin-alert-desc"></div>
       </div>
 
@@ -623,8 +623,8 @@
       { id: "b_1600", person: "B", time: "16:00", message: "Uống thuốc hằng ngày", slots: [5, 11, 16] }
     ];
 
-    // Cảnh báo nếu mở cửa quá 60 giây (1 phút) mà chưa đóng
-    const DOOR_OPEN_ALERT_MS = 10000;
+    // Cảnh báo nếu mở cửa quá 30 giây mà chưa đóng
+    const DOOR_OPEN_ALERT_MS = 30000;
     let doorOpenedAtMs = null;
     let doorOver1MinAlerted = false;
     let adminDoorAlertBanner = null;
@@ -757,11 +757,11 @@
         const slotTxt = (openedOption && openedOption.slots && openedOption.slots.length)
           ? `ô ${openedOption.slots.join(", ")}`
           : "ngăn thuốc";
-        const fullAlertMsg = `Cảnh báo: ${whoLabel} đang mở ${slotTxt} đã quá 1 phút chưa đóng cửa. Hệ thống sẽ tự động đóng cửa kết thúc để chờ lần lấy thuốc tiếp theo.`;
+        const fullAlertMsg = `Cảnh báo: ${whoLabel} đang mở ${slotTxt} đã quá 30 giây chưa đóng cửa. Hệ thống sẽ tự động đóng cửa kết thúc để chờ lần lấy thuốc tiếp theo.`;
 
         userStates[pCode] = {
           level: "red",
-          text: `${whoLabel} mở ${slotTxt} quá 1 phút — đã tự động đóng cửa kết thúc`,
+          text: `${whoLabel} mở ${slotTxt} quá 30 giây — đã tự động đóng cửa kết thúc`,
           lastTaken: userStates[pCode]?.lastTaken || "--"
         };
         saveJson(KEY_STATE, userStates);
@@ -769,20 +769,19 @@
         addLog({
           person: pCode,
           slot: (openedOption && openedOption.slots && openedOption.slots.length) ? openedOption.slots.join(",") : "--",
-          action: "TỰ ĐỘNG ĐÓNG (QUÁ 1 PHÚT)",
-          detail: `${whoLabel} mở ${slotTxt} quá 1 phút chưa đóng cửa`
+          action: "TỰ ĐỘNG ĐÓNG (QUÁ 30 GIÂY)",
+          detail: `${whoLabel} mở ${slotTxt} quá 30 giây chưa đóng cửa`
         });
 
         adminDoorAlertBanner = {
-          title: "⚠️ CẢNH BÁO MỞ CỬA QUÁ 1 PHÚT",
-          desc: `${whoLabel} mở ${slotTxt} quá 1 phút chưa đóng cửa. Đã phát thông báo và tự động đóng cửa kết thúc.`
+          title: "⚠️ CẢNH BÁO MỞ CỬA QUÁ 30 GIÂY",
+          desc: `${whoLabel} mở ${slotTxt} quá 30 giây chưa đóng cửa. Đã phát thông báo và tự động đóng cửa kết thúc.`
         };
         renderAdminDoorAlertUI();
 
-        // Phát âm thanh đầy đủ qua loa PC (PyCharm) + điện thoại trước khi tự động đóng cửa
-        sendVoiceToPyCharm(fullAlertMsg, "door_open_1min_auto_close");
+        sendVoiceToPyCharm(fullAlertMsg, "door_open_30s_auto_close");
         playAlertSoundOnPhone(fullAlertMsg);
-        showToast(`⚠️ ${whoLabel} mở ${slotTxt} quá 1 phút — tự động đóng cửa`);
+        showToast(`⚠️ ${whoLabel} mở ${slotTxt} quá 30 giây — tự động đóng cửa`);
 
         if (currentUser && activeTab === "history") {
           renderHistoryTab();
