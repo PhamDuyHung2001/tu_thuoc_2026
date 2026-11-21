@@ -677,24 +677,35 @@
       window._tt = setTimeout(() => el.classList.add("hidden"), 3000);
     }
 
-    function playAlertBeepOnWeb() {
+    function playAlertSoundOnPhone(spokenText = "") {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const notes = [880, 660, 880];
-        notes.forEach((freq, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = "sine";
-          osc.frequency.value = freq;
-          gain.gain.value = 0.12;
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          const start = ctx.currentTime + idx * 0.18;
-          osc.start(start);
-          osc.stop(start + 0.14);
-        });
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const notes = [880, 660, 880, 990];
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "triangle";
+            osc.frequency.value = freq;
+            gain.gain.value = 0.2;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            const start = ctx.currentTime + idx * 0.16;
+            osc.start(start);
+            osc.stop(start + 0.13);
+          });
+        }
+      } catch (e) {}
+
+      try {
+        if (spokenText && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(spokenText);
+          utter.lang = "vi-VN";
+          utter.rate = 1.0;
+          window.speechSynthesis.speak(utter);
+        }
       } catch (e) {}
     }
 
@@ -759,10 +770,10 @@
         };
         renderAdminDoorAlertUI();
 
-        // Phát âm thanh qua loa PC (PyCharm) + tiếng bíp cảnh báo trên app quản lý
-        sendVoiceToPyCharm(`Cảnh báo quản lý: ${msg}.`, "door_open_1min_alert");
+        const alertSpeech = `Cảnh báo quản lý: ${msg}.`;
+        sendVoiceToPyCharm(alertSpeech, "door_open_1min_alert");
         if (currentUser && currentUser.role === "ADMIN") {
-          playAlertBeepOnWeb();
+          playAlertSoundOnPhone(alertSpeech);
           showToast(`⚠️ ${msg}!`);
         }
         if (currentUser && activeTab === "history") {
@@ -1041,7 +1052,7 @@
       const whoLabel = person === "A" ? "Người A" : "Người B";
       const nearestTime = rankedOptions.length ? rankedOptions[0].time : "";
       sendVoiceToPyCharm(
-        `Đã xác nhận ${whoLabel} qua ${viaLabel}. Mốc gần nhất là ${nearestTime} viền xanh, các mốc còn lại viền cam. Mời chọn mốc trên màn hình tủ thuốc.`,
+        `Đã xác nhận ${whoLabel} qua ${viaLabel}. Mốc gần nhất là ${nearestTime} viền hồng, các mốc còn lại viền xanh. Mời chọn mốc trên màn hình tủ thuốc.`,
         "scan_done_oled"
       );
 
@@ -1157,7 +1168,7 @@
           document.getElementById("oled-picking-title").textContent =
             `${whoLabel} đang chọn mốc giờ trên màn hình`;
           document.getElementById("oled-picking-desc").textContent = near
-            ? `Gần nhất (Viền xanh): ${near.time} - ${near.message} (Ô ${near.slots.join(",")}). Các mốc còn lại hiển thị viền Cam.`
+            ? `Gần nhất (Viền hồng): ${near.time} - ${near.message} (Ô ${near.slots.join(",")}). Các mốc còn lại hiển thị viền Xanh.`
             : "Mời chạm chọn mốc trên màn hình.";
           oledCard.classList.remove("hidden");
         }
