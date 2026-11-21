@@ -624,10 +624,11 @@
     ];
 
     // Cảnh báo nếu mở cửa quá 60 giây (1 phút) mà chưa đóng
-    const DOOR_OPEN_ALERT_MS = 60000;
+    const DOOR_OPEN_ALERT_MS = 10000;
     let doorOpenedAtMs = null;
     let doorOver1MinAlerted = false;
     let adminDoorAlertBanner = null;
+    let autoCloseTimeoutTimer = null;
 
     let phase = "idle";
     let scannedPerson = null;
@@ -709,6 +710,13 @@
       } catch (e) {}
     }
 
+    function clearAutoCloseTimer() {
+      if (autoCloseTimeoutTimer) {
+        clearTimeout(autoCloseTimeoutTimer);
+        autoCloseTimeoutTimer = null;
+      }
+    }
+
     function onDoorOpenedState() {
       if (doorOpenedAtMs === null) {
         doorOpenedAtMs = Date.now();
@@ -717,6 +725,7 @@
     }
 
     function onDoorClosedState() {
+      clearAutoCloseTimer();
       doorOpenedAtMs = null;
       doorOver1MinAlerted = false;
       adminDoorAlertBanner = null;
@@ -746,13 +755,13 @@
         const pCode = scannedPerson || "A";
         const whoLabel = pCode === "B" ? "Người B" : "Người A";
         const slotTxt = (openedOption && openedOption.slots && openedOption.slots.length)
-          ? ` (Ô ${openedOption.slots.join(", ")})`
-          : "";
-        const msg = `${whoLabel}${slotTxt} mở cửa đã quá 1 phút nhưng chưa đóng cửa`;
+          ? `ô ${openedOption.slots.join(", ")}`
+          : "ngăn thuốc";
+        const fullAlertMsg = `Cảnh báo: ${whoLabel} đang mở ${slotTxt} đã quá 1 phút chưa đóng cửa. Hệ thống sẽ tự động đóng cửa kết thúc để chờ lần lấy thuốc tiếp theo.`;
 
         userStates[pCode] = {
           level: "red",
-          text: msg,
+          text: `${whoLabel} mở ${slotTxt} quá 1 phút — đã tự động đóng cửa kết thúc`,
           lastTaken: userStates[pCode]?.lastTaken || "--"
         };
         saveJson(KEY_STATE, userStates);
@@ -760,25 +769,32 @@
         addLog({
           person: pCode,
           slot: (openedOption && openedOption.slots && openedOption.slots.length) ? openedOption.slots.join(",") : "--",
-          action: "CẢNH BÁO QUÁ 1 PHÚT",
-          detail: msg
+          action: "TỰ ĐỘNG ĐÓNG (QUÁ 1 PHÚT)",
+          detail: `${whoLabel} mở ${slotTxt} quá 1 phút chưa đóng cửa`
         });
 
         adminDoorAlertBanner = {
           title: "⚠️ CẢNH BÁO MỞ CỬA QUÁ 1 PHÚT",
-          desc: `${msg}. Vui lòng kiểm tra hoặc đóng cửa.`
+          desc: `${whoLabel} mở ${slotTxt} quá 1 phút chưa đóng cửa. Đã phát thông báo và tự động đóng cửa kết thúc.`
         };
         renderAdminDoorAlertUI();
 
-        const alertSpeech = `Cảnh báo quản lý: ${msg}.`;
-        sendVoiceToPyCharm(alertSpeech, "door_open_1min_alert");
-        if (currentUser && currentUser.role === "ADMIN") {
-          playAlertSoundOnPhone(alertSpeech);
-          showToast(`⚠️ ${msg}!`);
-        }
+        // Phát âm thanh đầy đủ qua loa PC (PyCharm) + điện thoại trước khi tự động đóng cửa
+        sendVoiceToPyCharm(fullAlertMsg, "door_open_1min_auto_close");
+        playAlertSoundOnPhone(fullAlertMsg);
+        showToast(`⚠️ ${whoLabel} mở ${slotTxt} quá 1 phút — tự động đóng cửa`);
+
         if (currentUser && activeTab === "history") {
           renderHistoryTab();
         }
+
+        clearAutoCloseTimer();
+        autoCloseTimeoutTimer = setTimeout(() => {
+          autoCloseTimeoutTimer = null;
+          if (phase === "opened") {
+            finishAndCloseDoor({ fromTimeout: true });
+          }
+        }, 2500);
       }
     }
 
@@ -889,6 +905,7 @@
 
     function logout() {
       if (isFindingBox) stopFindBox();
+      clearAutoCloseTimer();
       if (client) {
         try { client.end(true); } catch (e) {}
         client = null;
@@ -1105,9 +1122,11 @@
       showToast(`Đã mở từ xa ô ${sListStr} (${al.time})`);
     }
 
-    function finishAndCloseDoor() {
+    function finishAndCloseDoor(optsArg = {}) {
+      const fromTimeout = Boolean(optsArg && optsArg.fromTimeout);
       if (isFindingBox) stopFindBox();
-      onDoorClosedState();
+      clearAutoCloseTimer();
+
       const pCode = scannedPerson || (currentUser && currentUser.role !== "ADMIN" ? currentUser.role : "A");
       for (let i = 1; i <= 18; i++) {
         slotColor[i] = "red";
@@ -1122,14 +1141,22 @@
       }
 
       const whoLabel = pCode === "A" ? "Người A" : "Người B";
-      sendVoiceToPyCharm(`Đã đóng cửa kết thúc cho ${whoLabel}.`, "door_closed");
-
-      userStates[pCode] = {
-        level: "green",
-        text: "Đã uống thuốc & đóng cửa kết thúc",
-        lastTaken: new Date().toLocaleString("vi-VN")
-      };
-      saveJson(KEY_STATE, userStates);
+      if (!fromTimeout) {
+        onDoorClosedState();
+        sendVoiceToPyCharm(`Đã đóng cửa kết thúc cho ${whoLabel}.`, "door_closed");
+        userStates[pCode] = {
+          level: "green",
+          text: "Đã uống thuốc & đóng cửa kết thúc",
+          lastTaken: new Date().toLocaleString("vi-VN")
+        };
+        saveJson(KEY_STATE, userStates);
+        showToast("Đã đóng cửa kết thúc");
+      } else {
+        doorOpenedAtMs = null;
+        doorOver1MinAlerted = false;
+        sendVoiceToPyCharm(`Đã tự động đóng cửa kết thúc cho ${whoLabel}. Mời chờ lần lấy thuốc tiếp theo.`, "door_auto_closed");
+        showToast("Đã tự động đóng cửa kết thúc");
+      }
 
       phase = "idle";
       scannedPerson = null;
@@ -1137,7 +1164,6 @@
       openedOption = null;
 
       renderAll();
-      showToast("Đã đóng cửa kết thúc");
     }
 
     function renderPhaseUI() {
