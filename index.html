@@ -184,8 +184,35 @@
       from { box-shadow: 0 0 0 rgba(239, 68, 68, 0.1); }
       to { box-shadow: 0 0 18px rgba(239, 68, 68, 0.45); }
     }
-    .admin-alert-title { font-size: 14px; font-weight: 800; color: #fca5a5; margin-bottom: 4px; }
+    .admin-alert-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+    .admin-alert-title { font-size: 13px; font-weight: 800; color: #fca5a5; }
     .admin-alert-desc { font-size: 12px; color: #f8fafc; line-height: 1.45; }
+    .admin-alert-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn-ack-alert {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(252, 165, 165, 0.75);
+      color: #fecaca;
+      border-radius: 9px;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-ack-alert:hover {
+      background: rgba(239, 68, 68, 0.35);
+      color: #fff;
+    }
 
     .sensor-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 14px; }
     .sensor-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 11px 12px; }
@@ -286,7 +313,7 @@
     .alarm-desc { font-size: 12px; font-weight: 700; margin-top: 2px; }
     .alarm-slots { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
-    .alarm-btns { display: flex; flex-direction: column; gap: 6px; }
+    .alarm-btns { display: flex; flex-direction: column; gap: 5px; }
     .btn-sm {
       padding: 6px 10px;
       border-radius: 9px;
@@ -297,6 +324,7 @@
       font-weight: 700;
       cursor: pointer;
     }
+    .btn-sm.demo { background: rgba(245, 158, 11, 0.18); border-color: var(--yellow); color: #fbbf24; }
     .btn-sm.open { background: var(--green-soft); border-color: var(--green); color: #4ade80; }
     .btn-sm.del { background: var(--red-soft); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; }
 
@@ -327,8 +355,8 @@
     .slot-tag { font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 6px; background: var(--surface-2); color: var(--muted); }
     .slot-tag.a { color: var(--accent-a); }
     .slot-tag.b { color: var(--accent-b); }
-    .slot-sub { font-size: 10px; color: var(--muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .slot-dose { font-size: 10px; font-weight: 700; color: #cbd5e1; margin-top: 3px; }
+    .slot-sub { font-size: 10px; color: #e2e8f0; font-weight: 600; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .slot-dose { font-size: 10px; font-weight: 700; color: var(--muted); margin-top: 3px; }
     .slot-dose.warn { color: #fbbf24; }
 
     .slot-st {
@@ -369,8 +397,13 @@
       padding: 12px 14px;
       margin: 0 14px 10px;
     }
-    .summary-title { font-size: 12px; font-weight: 800; color: var(--primary); margin-bottom: 6px; }
-    .dose-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .summary-title { font-size: 12px; font-weight: 800; color: var(--primary); margin-bottom: 8px; }
+    .adherence-row { margin-bottom: 8px; }
+    .adherence-head { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+    .progress-bar { width: 100%; height: 7px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #22c55e, #38bdf8); border-radius: 999px; }
+
+    .dose-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .dose-chip {
       font-size: 11px;
       font-weight: 700;
@@ -496,8 +529,13 @@
       </header>
 
       <div id="admin-door-alert-card" class="admin-alert-box hidden">
-        <div id="admin-door-alert-title" class="admin-alert-title">CẢNH BÁO MỞ CỬA QUÁ 30 GIÂY</div>
+        <div class="admin-alert-top">
+          <div id="admin-door-alert-title" class="admin-alert-title">CẢNH BÁO MỞ CỬA QUÁ 30 GIÂY</div>
+        </div>
         <div id="admin-door-alert-desc" class="admin-alert-desc"></div>
+        <div class="admin-alert-actions">
+          <button type="button" class="btn-ack-alert" onclick="acknowledgeAndDismissAlert()">Đã biết &amp; Xóa thông báo</button>
+        </div>
       </div>
 
       <div class="sensor-strip">
@@ -585,11 +623,14 @@
         <div id="slots-grid" class="grid-18"></div>
 
         <div class="dose-editor">
-          <div style="font-size:13px;font-weight:800;color:var(--primary);">Nạp số liều còn lại cho ô thuốc</div>
+          <div style="font-size:13px;font-weight:800;color:var(--primary);">Cập nhật tên thuốc &amp; số liều còn lại</div>
           <div class="dose-row">
             <select id="dose-slot-select"></select>
+            <input id="med-name-input" type="text" placeholder="Tên thuốc (VD: Huyết áp)" />
+          </div>
+          <div class="dose-row">
             <input id="dose-count-input" type="number" min="0" max="99" value="7" placeholder="Số liều" />
-            <button type="button" class="btn-sm open" onclick="saveSlotDoses()">Cập nhật</button>
+            <button type="button" class="btn-sm open" onclick="saveSlotInfo()">Lưu ngăn</button>
           </div>
         </div>
       </div>
@@ -664,11 +705,13 @@
     const TOPIC_EVENT    = "tu_thuoc_01/event";
     const TOPIC_TTS      = "tu_thuoc_01/tts";
 
-    const KEY_ALARMS = "medibox_alarms_v11";
-    const KEY_LOGS   = "medibox_logs_v11";
-    const KEY_STATE  = "medibox_state_v11";
-    const KEY_DOSES  = "medibox_doses_v11";
-    const KEY_TAKEN  = "medibox_taken_v11";
+    const KEY_ALARMS   = "medibox_alarms_v12";
+    const KEY_LOGS     = "medibox_logs_v12";
+    const KEY_STATE    = "medibox_state_v12";
+    const KEY_DOSES    = "medibox_doses_v12";
+    const KEY_TAKEN    = "medibox_taken_v12";
+    const KEY_MEDNAMES = "medibox_mednames_v12";
+    const KEY_ALERT    = "medibox_admin_alert_v12";
 
     const DEFAULT_ALARMS = [
       { id: "a_0700", person: "A", time: "07:00", message: "Uống thuốc huyết áp", slots: [1, 7, 13] },
@@ -678,13 +721,21 @@
     ];
 
     const DEFAULT_DOSES = {};
-    for (let i = 1; i <= 18; i++) DEFAULT_DOSES[i] = 7;
+    const DEFAULT_MEDNAMES = {};
+    for (let i = 1; i <= 18; i++) {
+      DEFAULT_DOSES[i] = 7;
+      DEFAULT_MEDNAMES[i] = `Thuốc ô ${i}`;
+    }
+    DEFAULT_MEDNAMES[1] = "Huyết áp sáng";
+    DEFAULT_MEDNAMES[7] = "Giảm mỡ máu";
+    DEFAULT_MEDNAMES[13] = "Bảo vệ dạ dày";
+    DEFAULT_MEDNAMES[4] = "Tiểu đường sáng";
+    DEFAULT_MEDNAMES[10] = "Vitamin D3";
+    DEFAULT_MEDNAMES[17] = "Hỗ trợ tim";
 
-    // Ngưỡng cảnh báo 30s (đồng bộ với ESP32)
     const DOOR_OPEN_ALERT_MS = 30000;
     let doorOpenedAtMs = null;
     let doorAlertNotified = false;
-    let adminDoorAlertBanner = null;
     let doorWatchTimer = null;
 
     let phase = "idle";
@@ -728,7 +779,9 @@
     let alarms = loadJson(KEY_ALARMS, DEFAULT_ALARMS);
     let logs = loadJson(KEY_LOGS, []);
     let slotDoses = loadJson(KEY_DOSES, DEFAULT_DOSES);
-    let takenMap = loadJson(KEY_TAKEN, {}); // { "2026-11-21_a_0700": "07:05" }
+    let slotMedNames = loadJson(KEY_MEDNAMES, DEFAULT_MEDNAMES);
+    let takenMap = loadJson(KEY_TAKEN, {});
+    let adminDoorAlertBanner = loadJson(KEY_ALERT, null);
     let userStates = loadJson(KEY_STATE, {
       A: { level: "yellow", text: "Chờ lấy thuốc theo lịch", lastTaken: "--" },
       B: { level: "yellow", text: "Chờ lấy thuốc theo lịch", lastTaken: "--" }
@@ -742,7 +795,6 @@
       window._tt = setTimeout(() => el.classList.add("hidden"), 3000);
     }
 
-    // Phát âm thanh chuông báo + rung trên điện thoại (không dùng speechSynthesis dễ đọc sai tiếng Việt)
     function playAlertSoundOnPhone() {
       try {
         if ("vibrate" in navigator) {
@@ -793,8 +845,23 @@
       clearDoorWatchTimer();
       doorOpenedAtMs = null;
       doorAlertNotified = false;
-      adminDoorAlertBanner = null;
       renderAdminDoorAlertUI();
+    }
+
+    function acknowledgeAndDismissAlert() {
+      if (!adminDoorAlertBanner) return;
+      const actor = adminDoorAlertBanner.actor || "A";
+      const slotsInfo = adminDoorAlertBanner.slotsInfo || "--";
+      adminDoorAlertBanner = null;
+      saveJson(KEY_ALERT, null);
+      renderAdminDoorAlertUI();
+      addLog({
+        person: actor,
+        slot: slotsInfo,
+        action: "ĐÃ BIẾT CẢNH BÁO",
+        detail: `Quản lý đã xác nhận và xóa thông báo (${new Date().toLocaleTimeString("vi-VN")})`
+      });
+      showToast("Đã xác nhận và xóa thông báo");
     }
 
     function renderAdminDoorAlertUI() {
@@ -839,9 +906,12 @@
         });
 
         adminDoorAlertBanner = {
+          actor: pCode,
+          slotsInfo: (openedOption && openedOption.slots && openedOption.slots.length) ? openedOption.slots.join(",") : "--",
           title: "⚠️ CẢNH BÁO MỞ CỬA QUÁ 30 GIÂY",
           desc: `${whoLabel} mở ${slotTxt} quá 30 giây chưa đóng cửa. Đã phát chuông cảnh báo trên điện thoại và loa PC.`
         };
+        saveJson(KEY_ALERT, adminDoorAlertBanner);
         renderAdminDoorAlertUI();
 
         playAlertSoundOnPhone();
@@ -863,12 +933,12 @@
           const cur = Number(slotDoses[num] ?? 7);
           const next = Math.max(0, cur - 1);
           slotDoses[num] = next;
-          if (next <= 2) lowSlots.push({ slot: num, rem: next });
+          if (next <= 2) lowSlots.push({ slot: num, rem: next, name: slotMedNames[num] || `Ô ${num}` });
         }
       }
       saveJson(KEY_DOSES, slotDoses);
       if (lowSlots.length) {
-        const warnTxt = lowSlots.map(x => `ô ${x.slot} còn ${x.rem} liều`).join(", ");
+        const warnTxt = lowSlots.map(x => `ô ${x.slot} (${x.name}) còn ${x.rem} liều`).join(", ");
         showToast(`💊 Sắp hết thuốc: ${warnTxt}`);
         sendVoiceToPyCharm(`Cảnh báo sắp hết thuốc: ${warnTxt}.`, "low_dose_warning");
       }
@@ -880,12 +950,14 @@
       const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       takenMap[`${getTodayKey()}_${alarmObj.id}`] = hhmm;
       saveJson(KEY_TAKEN, takenMap);
+      syncScheduleToAll();
     }
 
     function populateDoseEditor() {
       const sel = document.getElementById("dose-slot-select");
-      const inp = document.getElementById("dose-count-input");
-      if (!sel || !inp || !currentUser) return;
+      const inpDose = document.getElementById("dose-count-input");
+      const inpName = document.getElementById("med-name-input");
+      if (!sel || !inpDose || !inpName || !currentUser) return;
 
       const allowed = currentUser.role === "ADMIN"
         ? Array.from({ length: 18 }, (_, i) => i + 1)
@@ -895,23 +967,34 @@
       sel.innerHTML = allowed.map(s => `<option value="${s}">Ô ${s} (còn ${slotDoses[s] ?? 7})</option>`).join("");
       const chosen = allowed.includes(prevVal) ? prevVal : allowed[0];
       sel.value = String(chosen);
-      inp.value = String(slotDoses[chosen] ?? 7);
+      inpDose.value = String(slotDoses[chosen] ?? 7);
+      inpName.value = String(slotMedNames[chosen] ?? `Thuốc ô ${chosen}`);
+
       sel.onchange = () => {
-        inp.value = String(slotDoses[Number(sel.value)] ?? 7);
+        const curSlot = Number(sel.value);
+        inpDose.value = String(slotDoses[curSlot] ?? 7);
+        inpName.value = String(slotMedNames[curSlot] ?? `Thuốc ô ${curSlot}`);
       };
     }
 
-    function saveSlotDoses() {
+    function saveSlotInfo() {
       const sel = document.getElementById("dose-slot-select");
-      const inp = document.getElementById("dose-count-input");
-      if (!sel || !inp) return;
+      const inpDose = document.getElementById("dose-count-input");
+      const inpName = document.getElementById("med-name-input");
+      if (!sel || !inpDose || !inpName) return;
+
       const s = Number(sel.value);
-      const val = Math.max(0, Math.min(99, parseInt(inp.value, 10) || 0));
+      const val = Math.max(0, Math.min(99, parseInt(inpDose.value, 10) || 0));
+      const mName = inpName.value.trim() || `Thuốc ô ${s}`;
+
       slotDoses[s] = val;
+      slotMedNames[s] = mName;
       saveJson(KEY_DOSES, slotDoses);
+      saveJson(KEY_MEDNAMES, slotMedNames);
+      syncScheduleToAll();
       populateDoseEditor();
       renderSlotsGrid();
-      showToast(`Đã cập nhật ô ${s} còn ${val} liều`);
+      showToast(`Đã lưu ô ${s}: "${mName}" (${val} liều)`);
     }
 
     function normalizeUid(u) {
@@ -928,6 +1011,39 @@
           time: new Date().toLocaleTimeString("vi-VN")
         }));
       }
+    }
+
+    function triggerDemoAlarmNow(alarmId) {
+      const al = alarms.find(a => a.id === alarmId);
+      if (!al) return;
+      const pLabel = al.person === "A" ? "Người A" : "Người B";
+
+      userStates[al.person] = {
+        level: "yellow",
+        text: `[DEMO] Đến giờ ${al.time}: ${al.message}`,
+        lastTaken: userStates[al.person]?.lastTaken || "--"
+      };
+      saveJson(KEY_STATE, userStates);
+
+      sendVoiceToPyCharm(
+        `Mô phỏng báo giờ: Đã đến giờ ${al.time}, ${pLabel} cần ${al.message}. Mời ra tủ quẹt thẻ hoặc nhận diện khuôn mặt.`,
+        "demo_alarm_now"
+      );
+
+      if (client && client.connected) {
+        phase = "scanning";
+        renderPhaseUI();
+        client.publish(TOPIC_CMD, JSON.stringify({ action: "start_scan_window" }));
+      }
+
+      addLog({
+        person: al.person,
+        slot: (al.slots || []).join(","),
+        action: `DEMO BÁO GIỜ ${al.time}`,
+        detail: `Mô phỏng tới giờ uống thuốc (${al.message})`
+      });
+
+      showToast(`Đã kích hoạt demo giờ ${al.time} cho ${pLabel}`);
     }
 
     function renderFindBoxUI() {
@@ -1088,6 +1204,8 @@
 
     function syncScheduleToAll() {
       if (!client || !client.connected) return;
+      const tKey = getTodayKey();
+
       const fmt = (p) => {
         const arr = alarms.filter(x => x.person === p).map(x => {
           const msgAscii = removeDiacritics(x.message);
@@ -1096,13 +1214,23 @@
         return arr.length ? arr.join(" | ") : "Chua co lich";
       };
 
-      const packAlarms = (p) => alarms.filter(x => x.person === p).map(x => ({
-        id: x.id,
-        person: x.person,
-        time: x.time,
-        message: x.message,
-        slots: x.slots
-      }));
+      const packAlarms = (p) => alarms.filter(x => x.person === p).map(x => {
+        const takenAt = takenMap[`${tKey}_${x.id}`] || "";
+        return {
+          id: x.id,
+          person: x.person,
+          time: x.time,
+          message: x.message,
+          slots: x.slots,
+          taken_today: Boolean(takenAt),
+          taken_at: takenAt
+        };
+      });
+
+      const asciiSlotNames = {};
+      for (let i = 1; i <= 18; i++) {
+        asciiSlotNames[String(i)] = removeDiacritics(slotMedNames[i] || `O ${i}`);
+      }
 
       client.publish(
         TOPIC_SCHEDULE,
@@ -1110,7 +1238,8 @@
           summary_a: fmt("A"),
           summary_b: fmt("B"),
           alarms_a: packAlarms("A"),
-          alarms_b: packAlarms("B")
+          alarms_b: packAlarms("B"),
+          slot_names: asciiSlotNames
         }),
         { retain: true }
       );
@@ -1145,12 +1274,20 @@
     function computeRankedOptions(person) {
       const now = new Date();
       const nowMin = now.getHours() * 60 + now.getMinutes();
+      const tKey = getTodayKey();
       const personAlarms = alarms.filter(a => a.person === person);
-      const list = personAlarms.map(a => ({
-        ...a,
-        diffMin: Math.abs(timeToMinutes(a.time) - nowMin),
-        isNearest: false
-      }));
+
+      const list = personAlarms.map(a => {
+        const takenAt = takenMap[`${tKey}_${a.id}`] || "";
+        return {
+          ...a,
+          diffMin: Math.abs(timeToMinutes(a.time) - nowMin),
+          isNearest: false,
+          takenToday: Boolean(takenAt),
+          takenAt
+        };
+      });
+
       list.sort((x, y) => x.diffMin - y.diffMin);
       if (list.length > 0) list[0].isNearest = true;
       return list;
@@ -1170,26 +1307,44 @@
         }
       }
 
+      const whoLabel = person === "A" ? "Người A" : "Người B";
+      const nearestOpt = rankedOptions.length ? rankedOptions[0] : null;
+
+      let dupWarn = false;
+      let dupText = "";
+      if (nearestOpt && nearestOpt.takenToday) {
+        dupWarn = true;
+        const atStr = nearestOpt.takenAt || "hôm nay";
+        dupText = `DA UONG CU ${nearestOpt.time} LUC ${atStr} - XAC NHAN LAI?`;
+        sendVoiceToPyCharm(
+          `Lưu ý: ${whoLabel} đã lấy thuốc cữ ${nearestOpt.time} lúc ${atStr} hôm nay. Vui lòng xác nhận nếu muốn lấy lại.`,
+          "duplicate_dose_warning"
+        );
+        showToast(`⚠️ ${whoLabel} đã uống cữ ${nearestOpt.time} lúc ${atStr}`);
+      } else if (nearestOpt) {
+        sendVoiceToPyCharm(
+          `Đã xác nhận ${whoLabel} qua ${viaLabel}. Mốc gần nhất là ${nearestOpt.time} viền hồng, các mốc còn lại viền xanh. Mời chọn mốc trên màn hình tủ thuốc.`,
+          "scan_done_oled"
+        );
+      }
+
       if (client && client.connected) {
         client.publish(TOPIC_CMD, JSON.stringify({
           action: "show_dose_options",
           user: person,
+          duplicate_warning: dupWarn,
+          duplicate_text: removeDiacritics(dupText),
           options: rankedOptions.map(o => ({
             id: o.id,
             time: o.time,
             message: removeDiacritics(o.message),
             slots: o.slots,
-            is_nearest: o.isNearest
+            is_nearest: o.isNearest,
+            taken_today: o.takenToday,
+            taken_at: o.takenAt
           }))
         }));
       }
-
-      const whoLabel = person === "A" ? "Người A" : "Người B";
-      const nearestTime = rankedOptions.length ? rankedOptions[0].time : "";
-      sendVoiceToPyCharm(
-        `Đã xác nhận ${whoLabel} qua ${viaLabel}. Mốc gần nhất là ${nearestTime} viền hồng, các mốc còn lại viền xanh. Mời chọn mốc trên màn hình tủ thuốc.`,
-        "scan_done_oled"
-      );
 
       renderAll();
     }
@@ -1224,8 +1379,9 @@
 
       const whoLabel = al.person === "A" ? "Người A" : "Người B";
       const sListStr = (al.slots || []).join(", ");
+      const medDesc = (al.slots || []).map(s => `ô ${s} (${slotMedNames[s] || "Thuốc"})`).join(", ");
       sendVoiceToPyCharm(
-        `Mở từ xa cho ${whoLabel}, mốc ${al.time}: ${al.message}. Đang mở ô ${sListStr}.`,
+        `Mở từ xa cho ${whoLabel}, mốc ${al.time}: ${al.message}. Đang mở ${medDesc}.`,
         "remote_open"
       );
 
@@ -1307,10 +1463,13 @@
 
         if (currentUser.role === "ADMIN" || currentUser.role === scannedPerson) {
           const near = rankedOptions.find(o => o.isNearest);
+          const dupNote = near && near.takenToday
+            ? ` ⚠️ Lưu ý: Cữ ${near.time} đã uống lúc ${near.takenAt} hôm nay!`
+            : "";
           document.getElementById("oled-picking-title").textContent =
             `${whoLabel} đang chọn mốc giờ trên màn hình`;
           document.getElementById("oled-picking-desc").textContent = near
-            ? `Gần nhất (Viền hồng): ${near.time} - ${near.message} (Ô ${near.slots.join(",")}). Các mốc còn lại hiển thị viền Xanh.`
+            ? `Gần nhất (Viền hồng): ${near.time} - ${near.message} (Ô ${near.slots.join(",")}).${dupNote}`
             : "Mời chạm chọn mốc trên màn hình.";
           oledCard.classList.remove("hidden");
         }
@@ -1321,10 +1480,11 @@
         stSub.textContent = `Ô ${(openedOption.slots || []).join(",")}`;
 
         if (currentUser.role === "ADMIN" || currentUser.role === scannedPerson) {
+          const medSummary = (openedOption.slots || []).map(s => `Ô ${s}: ${slotMedNames[s] || "Thuốc"}`).join(" • ");
           document.getElementById("opened-door-title").textContent =
             `${whoLabel} — Mốc ${openedOption.time || ""} (${openedOption.message || ""})`;
           document.getElementById("opened-door-desc").textContent =
-            `Đang mở servo & sáng đèn các ô: ${(openedOption.slots || []).join(", ")} (Tự động đóng sau 30s).`;
+            `${medSummary} (Tự động đóng sau 30s).`;
           openCard.classList.remove("hidden");
         }
       }
@@ -1414,19 +1574,25 @@
         return;
       }
 
-      box.innerHTML = list.map(a => `
-        <div class="alarm-item">
-          <div>
-            <div class="alarm-time">${a.time} <span style="font-size:12px;color:var(--muted);">(${a.person === "A" ? "Người A" : "Người B"})</span></div>
-            <div class="alarm-desc">${a.message}</div>
-            <div class="alarm-slots">Ô: ${a.slots.join(", ")}</div>
+      const tKey = getTodayKey();
+      box.innerHTML = list.map(a => {
+        const takenAt = takenMap[`${tKey}_${a.id}`];
+        const badge = takenAt ? `<span style="font-size:10px;color:#4ade80;">• Đã uống ${takenAt}</span>` : "";
+        return `
+          <div class="alarm-item">
+            <div>
+              <div class="alarm-time">${a.time} <span style="font-size:12px;color:var(--muted);">(${a.person === "A" ? "Người A" : "Người B"})</span> ${badge}</div>
+              <div class="alarm-desc">${a.message}</div>
+              <div class="alarm-slots">Ô: ${a.slots.join(", ")}</div>
+            </div>
+            <div class="alarm-btns">
+              <button type="button" class="btn-sm demo" onclick="triggerDemoAlarmNow('${a.id}')">Test giờ</button>
+              <button type="button" class="btn-sm open" onclick="remoteOpenAlarmOnApp('${a.id}')">Mở từ xa</button>
+              <button type="button" class="btn-sm del" onclick="deleteAlarm('${a.id}')">Xóa</button>
+            </div>
           </div>
-          <div class="alarm-btns">
-            <button type="button" class="btn-sm open" onclick="remoteOpenAlarmOnApp('${a.id}')">Mở từ xa</button>
-            <button type="button" class="btn-sm del" onclick="deleteAlarm('${a.id}')">Xóa</button>
-          </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     }
 
     function canTouchSlot(slotNum) {
@@ -1453,6 +1619,7 @@
         const c = slotColor[i] || "red";
         const rem = Number(slotDoses[i] ?? 7);
         const isLow = rem <= 2;
+        const mName = slotMedNames[i] || `Thuốc ô ${i}`;
 
         let cls = `slot-card ${ownerCode === "A" ? "owner-a" : "owner-b"} ${!allowed ? "locked" : ""} ${isLow ? "low-dose" : ""}`;
         let txt = "ĐÓNG";
@@ -1467,7 +1634,7 @@
             <span class="slot-id">Ô ${String(i).padStart(2, "0")}</span>
             <span class="slot-tag ${ownerCode === "A" ? "a" : "b"}">${ownerCode}</span>
           </div>
-          <div class="slot-sub">${allowed ? (isA ? "Người A" : "Người B") : "Bị khóa"}</div>
+          <div class="slot-sub">${mName}</div>
           <div class="slot-dose ${isLow ? "warn" : ""}">${isLow ? "⚠️ " : ""}Còn ${rem} liều</div>
           <span class="slot-st">${txt}</span>
         `;
@@ -1495,8 +1662,9 @@
         servo: nextOpen ? "open" : "close"
       }));
 
+      const mName = slotMedNames[slotNum] || `ô ${slotNum}`;
       sendVoiceToPyCharm(
-        nextOpen ? `Đã mở servo ô ${slotNum}.` : `Đã đóng servo ô ${slotNum}.`,
+        nextOpen ? `Đã mở servo ô ${slotNum} (${mName}).` : `Đã đóng servo ô ${slotNum}.`,
         "manual_slot"
       );
 
@@ -1504,11 +1672,11 @@
         person: currentUser.role === "ADMIN" ? ownerCode : currentUser.role,
         slot: String(slotNum),
         action: nextOpen ? "MỞ SERVO" : "ĐÓNG SERVO",
-        detail: `Bởi ${currentUser.name}`
+        detail: `${mName} • Bởi ${currentUser.name}`
       });
 
       renderSlotsGrid();
-      showToast(nextOpen ? `Đã mở ô ${slotNum}` : `Đã đóng ô ${slotNum}`);
+      showToast(nextOpen ? `Đã mở ô ${slotNum} (${mName})` : `Đã đóng ô ${slotNum}`);
     }
 
     function addLog(entry) {
@@ -1533,6 +1701,25 @@
       const filteredAlarms = alarms.filter(a => visiblePersons.includes(a.person));
 
       if (sumWrap) {
+        const adherenceHtml = visiblePersons.map(p => {
+          const pAlarms = alarms.filter(a => a.person === p);
+          const total = pAlarms.length;
+          const doneCount = pAlarms.filter(a => Boolean(takenMap[`${tKey}_${a.id}`])).length;
+          const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+          const label = p === "A" ? "Người A" : "Người B";
+          return `
+            <div class="adherence-row">
+              <div class="adherence-head">
+                <span>Tuân thủ ${label}: ${pct}% (${doneCount}/${total} cữ)</span>
+                <span>${tKey}</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width:${pct}%;"></div>
+              </div>
+            </div>
+          `;
+        }).join("");
+
         const chips = filteredAlarms.map(a => {
           const who = a.person === "A" ? "A" : "B";
           const takenTime = takenMap[`${tKey}_${a.id}`];
@@ -1547,7 +1734,8 @@
 
         sumWrap.innerHTML = `
           <div class="summary-strip">
-            <div class="summary-title">Tổng quan cữ uống hôm nay (${tKey})</div>
+            <div class="summary-title">Tỷ lệ tuân thủ &amp; các cữ hôm nay</div>
+            ${adherenceHtml}
             <div class="dose-chips">${chips || `<span style="font-size:11px;color:var(--muted);">Chưa có mốc báo thuốc</span>`}</div>
           </div>
         `;
@@ -1786,9 +1974,12 @@
                 detail: "Quá 30 giây không đóng cửa trên mô hình"
               });
               adminDoorAlertBanner = {
+                actor: actor,
+                slotsInfo: data.detail || "--",
                 title: "⚠️ ESP32 ĐÃ TỰ ĐỘNG ĐÓNG CỬA (QUÁ 30 GIÂY)",
                 desc: `${whoLabel} mở cửa quá 30 giây chưa đóng, mô hình đã tự đóng và đưa về màn hình chờ.`
               };
+              saveJson(KEY_ALERT, adminDoorAlertBanner);
               playAlertSoundOnPhone();
               showToast(`⚠️ ${whoLabel} mở cửa quá 30s — ESP32 đã tự đóng`);
               phase = "idle";
