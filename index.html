@@ -632,6 +632,11 @@
             <input id="dose-count-input" type="number" min="0" max="99" value="7" placeholder="Số liều" />
             <button type="button" class="btn-sm open" onclick="saveSlotInfo()">Lưu ngăn</button>
           </div>
+          <div class="dose-row">
+            <button type="button" class="btn-main" style="padding:9px;font-size:12px;" onclick="refillAllDosesToFull()">
+              💊 Cập nhật thuốc đầy (7 liều)
+            </button>
+          </div>
         </div>
       </div>
 
@@ -997,6 +1002,35 @@
       showToast(`Đã lưu ô ${s}: "${mName}" (${val} liều)`);
     }
 
+    function refillAllDosesToFull() {
+      if (!currentUser) return;
+
+      const targetSlots = currentUser.role === "ADMIN"
+        ? Array.from({ length: 18 }, (_, i) => i + 1)
+        : (currentUser.role === "B" ? SLOTS_B : SLOTS_A);
+
+      for (const s of targetSlots) {
+        slotDoses[s] = 7;
+      }
+
+      saveJson(KEY_DOSES, slotDoses);
+      populateDoseEditor();
+      renderSlotsGrid();
+
+      const scopeLabel = currentUser.role === "ADMIN"
+        ? "tất cả 18 ngăn"
+        : (currentUser.role === "B" ? "các ngăn Người B" : "các ngăn Người A");
+
+      addLog({
+        person: currentUser.role === "ADMIN" ? "A" : currentUser.role,
+        slot: targetSlots.join(","),
+        action: "CẬP NHẬT THUỐC ĐẦY",
+        detail: `Đặt lại 7 liều cho ${scopeLabel} (Bởi ${currentUser.name})`
+      });
+
+      showToast(`Đã cập nhật đầy 7 liều cho ${scopeLabel}`);
+    }
+
     function normalizeUid(u) {
       return String(u || "").replace(/[\s:]/g, "").toUpperCase();
     }
@@ -1293,7 +1327,6 @@
       return list;
     }
 
-    // Mốc gần nhất = viền xanh, mốc xa hơn = viền hồng
     function onAuthenticatedFromHardware(person, viaLabel) {
       if (phase !== "scanning") return;
 
@@ -1926,7 +1959,49 @@
               onAuthenticatedFromHardware("B", "khuôn mặt");
             }
           } else if (topic === TOPIC_EVENT) {
-            if (data.event === "start_scan" && phase === "idle") {
+            if (data.event === "medicine_taken") {
+              const actor = data.actor === "B" ? "B" : (data.actor === "A" ? "A" : (scannedPerson || "A"));
+              const whoLabel = actor === "B" ? "Người B" : "Người A";
+              const slotsInfo = data.slots || (openedOption && Array.isArray(openedOption.slots) ? openedOption.slots.join(",") : "--");
+
+              userStates[actor] = {
+                level: userStates[actor]?.level === "red" ? "red" : "green",
+                text: `Có lấy thuốc ra uống${slotsInfo !== "--" ? ` (Ô ${slotsInfo})` : ""}`,
+                lastTaken: new Date().toLocaleString("vi-VN")
+              };
+              saveJson(KEY_STATE, userStates);
+
+              addLog({
+                person: actor,
+                slot: slotsInfo,
+                action: "CÓ LẤY THUỐC RA UỐNG",
+                detail: `${whoLabel} có lấy thuốc ra uống`
+              });
+
+              showToast(`💊 ${whoLabel}: Có lấy thuốc ra uống`);
+              if (currentUser && activeTab === "history") renderHistoryTab();
+            } else if (data.event === "medicine_not_taken") {
+              const actor = data.actor === "B" ? "B" : (data.actor === "A" ? "A" : (scannedPerson || "A"));
+              const whoLabel = actor === "B" ? "Người B" : "Người A";
+              const slotsInfo = data.slots || (openedOption && Array.isArray(openedOption.slots) ? openedOption.slots.join(",") : "--");
+
+              userStates[actor] = {
+                level: "yellow",
+                text: `Chưa lấy thuốc ra uống${slotsInfo !== "--" ? ` (Ô ${slotsInfo})` : ""}`,
+                lastTaken: userStates[actor]?.lastTaken || "--"
+              };
+              saveJson(KEY_STATE, userStates);
+
+              addLog({
+                person: actor,
+                slot: slotsInfo,
+                action: "CHƯA LẤY THUỐC RA UỐNG",
+                detail: `${whoLabel} chưa lấy thuốc ra uống`
+              });
+
+              showToast(`⚠️ ${whoLabel}: Chưa lấy thuốc ra uống`);
+              if (currentUser && activeTab === "history") renderHistoryTab();
+            } else if (data.event === "start_scan" && phase === "idle") {
               phase = "scanning";
               renderPhaseUI();
             } else if (data.event === "find_box_stopped") {
